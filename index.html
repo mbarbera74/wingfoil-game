@@ -1425,6 +1425,9 @@ function updateHUD(){
     #tc-jump.on{background:rgba(255,176,32,.7)}
     #tc-tack{right:198px;bottom:132px;width:64px;height:64px}
     #tc-grab{right:198px;bottom:44px;width:64px;height:64px}
+    #tc-flb{left:18px;bottom:182px;width:72px;height:72px;background:rgba(120,90,220,.32);border-color:rgba(150,120,240,.6);font-size:11px}
+    #tc-flf{left:106px;bottom:182px;width:72px;height:72px;background:rgba(120,90,220,.32);border-color:rgba(150,120,240,.6);font-size:11px}
+    #tc-flb.on,#tc-flf.on{background:rgba(150,120,240,.72)}
   `;
   const st=document.createElement('style'); st.textContent=css; document.head.appendChild(st);
 
@@ -1436,7 +1439,9 @@ function updateHUD(){
     '<div class="tc" id="tc-surf"  data-code="ArrowDown"><span class="ic">&#9660;</span>SURF</div>'+
     '<div class="tc" id="tc-jump"  data-code="Space">JUMP</div>'+
     '<div class="tc" id="tc-tack"  data-code="KeyF" data-tap="1">TACK</div>'+
-    '<div class="tc" id="tc-grab"  data-code="ShiftLeft">GRAB</div>';
+    '<div class="tc" id="tc-grab"  data-code="ShiftLeft">GRAB</div>'+
+    '<div class="tc" id="tc-flb"  data-code="KeyQ"><span class="ic">&#8634;</span>B-LOOP</div>'+
+    '<div class="tc" id="tc-flf"  data-code="KeyE"><span class="ic">&#8635;</span>F-LOOP</div>';
   document.body.appendChild(wrap);
 
   const fire=(type,code)=>window.dispatchEvent(new KeyboardEvent(type,{code:code,bubbles:true}));
