@@ -44,6 +44,29 @@
     font-size:60px;font-weight:900;color:#ffd23f;text-align:center;white-space:nowrap;
     text-shadow:0 6px 26px rgba(0,0,0,.7);pointer-events:none}
 
+  /* ---- Regatta (scuola regata) ---- */
+  #regHud{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:8;display:none;
+    text-align:center;pointer-events:none;font-family:inherit}
+  #regClock{font-size:46px;font-weight:900;color:#eaf2ff;line-height:1;letter-spacing:1px;
+    text-shadow:0 4px 18px rgba(0,0,0,.7)}
+  #regFlags{display:flex;gap:6px;justify-content:center;margin-top:6px;min-height:30px}
+  #regFlags .flag{width:42px;height:28px;border-radius:3px;border:1px solid rgba(255,255,255,.6);
+    box-shadow:0 2px 8px rgba(0,0,0,.5);font-size:12px;font-weight:900;display:flex;
+    align-items:center;justify-content:center;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+  #regPhase{margin-top:5px;font-size:14px;color:#cfe3ff;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+  #regOcs{position:fixed;top:44%;left:50%;transform:translateX(-50%);z-index:9;display:none;
+    background:rgba(220,40,40,.92);color:#fff;font-weight:800;font-size:20px;padding:10px 18px;
+    border-radius:10px;pointer-events:none;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+  #regOcs span{display:block;font-size:13px;font-weight:600;margin-top:3px;color:#ffe0e0}
+  #regPenalty{position:fixed;top:54%;left:50%;transform:translateX(-50%);z-index:9;display:none;
+    background:rgba(255,160,0,.94);color:#3a2400;font-weight:800;font-size:17px;padding:8px 16px;
+    border-radius:10px;pointer-events:none;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+  #regStand{position:fixed;left:14px;top:120px;z-index:6;display:none;pointer-events:none;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;
+    font-size:12px;min-width:150px;backdrop-filter:blur(6px)}
+  #regStand .rs{display:flex;justify-content:space-between;gap:10px;padding:2px 0;color:#dbe8ff}
+  #regStand .rs.me{color:#27d3c4;font-weight:800}
+  #regStand h4{margin:0 0 4px;font-size:11px;color:#8aa0bd;letter-spacing:1px;text-transform:uppercase}
   /* ---------- Menu ---------- */
   #menu{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
     background:radial-gradient(120% 120% at 50% 0%,#143456 0%,#081120 60%,#04080f 100%)}
@@ -177,6 +200,14 @@
 </div>
 <div id="trickPop"></div>
 <div id="mpBoard" style="display:none"></div>
+<div id="regHud" style="display:none">
+  <div id="regClock">5:00</div>
+  <div id="regFlags"></div>
+  <div id="regPhase">In attesa…</div>
+</div>
+<div id="regOcs" style="display:none">OCS! Sei oltre la linea — rientra! <span id="regOcsHow"></span></div>
+<div id="regPenalty" style="display:none"></div>
+<div id="regStand" style="display:none"></div>
 <div id="raceHud">
   <div class="card">
     <div class="row"><span>Boa</span><b id="rcBuoy">1/3</b></div>
@@ -205,6 +236,39 @@
           <div class="opt" data-mode="race">Race<small>gara a boe + cronometro</small></div>
         </div>
         <div class="advice" id="modeAdvice" style="margin-top:8px"></div>
+      </div>
+      <div class="field" id="regattaField" style="display:none">
+        <h3>🏁 Scuola Regata</h3>
+        <div class="opts" id="regattaOpts">
+          <div class="opt sel" data-regatta="0">Off<small>gara semplice</small></div>
+          <div class="opt" data-regatta="1">On<small>partenza + regole reali</small></div>
+        </div>
+        <div id="regattaSub" style="display:none;margin-top:8px">
+          <div class="sub" style="margin:6px 0 3px">Durata sequenza partenza</div>
+          <div class="opts" id="seqOpts">
+            <div class="opt" data-seq="1">1’<small>veloce</small></div>
+            <div class="opt sel" data-seq="3">3’<small>medio</small></div>
+            <div class="opt" data-seq="5">5’<small>reale</small></div>
+          </div>
+          <div class="sub" style="margin:8px 0 3px">Bandiera preparatorio</div>
+          <div class="opts" id="prepOpts">
+            <div class="opt sel" data-prep="P">P<small>rientro dipping</small></div>
+            <div class="opt" data-prep="I">I<small>round-an-end</small></div>
+          </div>
+          <div class="sub" style="margin:8px 0 3px">Avversari</div>
+          <div class="opts" id="aiNOpts">
+            <div class="opt sel" data-ain="0">0<small>da solo</small></div>
+            <div class="opt" data-ain="3">3</div>
+            <div class="opt" data-ain="5">5</div>
+          </div>
+          <div class="sub" style="margin:8px 0 3px">Livello avversari</div>
+          <div class="opts" id="aiSkOpts">
+            <div class="opt" data-aisk="weak">Scarsi</div>
+            <div class="opt sel" data-aisk="mixed">Misti</div>
+            <div class="opt" data-aisk="strong">Forti</div>
+          </div>
+          <div class="advice" id="regattaAdvice" style="margin-top:8px"></div>
+        </div>
       </div>
       <div class="field">
         <h3>Spot</h3>
@@ -318,7 +382,7 @@ const SPOTS = {
   hawaii:      { name:'Hawaii',       sky:0x8fd0ef, water:0x12a6c2, deep:0x086a82, waveAmp:0.22, waveLen:14, swellAmp:1.15, swellLen:12, swellDir:0.40, swellSpeed:0.70, sun:0xfff6dc, fog:0xbce8ea },
 };
 
-const cfg = { mode:'freeride', spot:'sardegna', wind:18, sail:5, wing:1500, mast:85 };
+const cfg = { mode:'freeride', spot:'sardegna', wind:18, sail:5, wing:1500, mast:85, regatta:0, seq:3, prep:'P', ain:0, aisk:'mixed' };
 
 // ---------- DOM ----------
 const $ = s=>document.querySelector(s);
@@ -326,6 +390,8 @@ const menu=$('#menu'), hud=$('#hud'), scoreWrap=$('#scoreWrap'), backBtn=$('#bac
 const trickPop=$('#trickPop');
 const raceHud=$('#raceHud'), rcBig=$('#rcBig');
 const rcBuoy=$('#rcBuoy'), rcSide=$('#rcSide'), rcLap=$('#rcLap'), rcTime=$('#rcTime'), rcBest=$('#rcBest'), rcDist=$('#rcDist'), rcArrow=$('#rcArrow');
+const regHud=$('#regHud'), regClock=$('#regClock'), regFlags=$('#regFlags'), regPhase=$('#regPhase'),
+      regOcs=$('#regOcs'), regOcsHow=$('#regOcsHow'), regPenalty=$('#regPenalty'), regStand=$('#regStand');
 
 function selOpts(container, attr, key){
   container.querySelectorAll('.opt').forEach(o=>{
@@ -342,11 +408,30 @@ selOpts($('#spotOpts'),'spot','spot');
 selOpts($('#sailOpts'),'sail','sail');
 selOpts($('#wingOpts'),'wing','wing');
 selOpts($('#mastOpts'),'mast','mast');
+selOpts($('#regattaOpts'),'regatta','regatta');
+selOpts($('#seqOpts'),'seq','seq');
+selOpts($('#prepOpts'),'prep','prep');
+selOpts($('#aiNOpts'),'ain','ain');
+selOpts($('#aiSkOpts'),'aisk','aisk');
+function refreshRegattaUI(){
+  const rf=$('#regattaField'), rs=$('#regattaSub'), ra=$('#regattaAdvice');
+  if(rf) rf.style.display = (cfg.mode==='race') ? 'block' : 'none';
+  if(rs) rs.style.display = (+cfg.regatta===1) ? 'block' : 'none';
+  if(ra && +cfg.regatta===1){
+    const sk = cfg.aisk==='weak'?'scarsi (partono male, lenti)':cfg.aisk==='strong'?'forti (partenze precise)':'misti';
+    ra.innerHTML='Partenza ufficiale Reg.26: avviso → preparatorio ('+cfg.prep+') → 1 minuto → via, con bandiere e segnali. '
+      + (+cfg.ain>0 ? (+cfg.ain+' avversari '+sk+'. ') : '')
+      + 'Supera la linea in anticipo = OCS. Tocchi una boa = 1 giro di penalità; precedenza mancata = 2 giri.';
+    ra.className='advice ok';
+  }
+}
+refreshRegattaUI();
 
 const windSlider=$('#windSlider');
 windSlider.oninput=()=>{ cfg.wind=+windSlider.value; $('#windLabel').textContent=cfg.wind; updateAdvice(); };
 
 function updateAdvice(){
+  if(typeof refreshRegattaUI==='function') refreshRegattaUI();
   const ma=$('#modeAdvice');
   if(ma){ if(cfg.mode==='race'){ ma.textContent='🏁 Gara: percorso bolina/poppa (3 boe + offset), si gira a sinistra, 2 giri a cronometro.'; ma.className='advice ok'; }
     else { ma.textContent='🏄 Giro libero: nessun percorso, solo onde, salti e freestyle.'; ma.className='advice'; } }
@@ -563,6 +648,7 @@ function buildScenery(){
   // race course (buoys + start gate) only in race mode
   RACE.on = (cfg.mode==='race');
   if(RACE.on) RACE.build();
+  if(typeof REG!=='undefined'){ REG.on = RACE.on && (+cfg.regatta===1); if(REG.on) REG.build(); }
 }
 
 /* ---------- realistic geometry builders ---------- */
@@ -1189,9 +1275,10 @@ const RACE = {
     this.finished=false; this.countdown=3.2; this.lastLap=null;
     // Sequenza autentica: [Bolina→Offset→Poppa] × giri, poi UNA SOLA volta l'Arrivo.
     this.seq=[]; for(let l=0;l<this.laps;l++) this.seq.push(0,1,2); this.seq.push(3);
-    S.pos.set(-46,0,0); S.heading=Math.PI/2; S.vel=3;   // on the start line, pointing upwind (+X)
     if(typeof wakePts!=='undefined') wakePts.length=0;
-    rcBig.style.display='block'; rcBig.textContent='3';
+    if(typeof REG!=='undefined' && REG.on){ this.countdown=0; REG.reset(); }
+    else { S.pos.set(-46,0,0); S.heading=Math.PI/2; S.vel=3;   // on the start line, pointing upwind (+X)
+      rcBig.style.display='block'; rcBig.textContent='3'; }
   },
   build(){
     this.group=new THREE.Group(); scene.add(this.group); this.marks=[];
@@ -1243,6 +1330,7 @@ const RACE = {
     rcBig.innerHTML='🏁 FINISH<div style="font-size:22px;color:#9ff3ec;margin-top:6px">tempo '+this.fmt(this.t)+' · best lap '+this.fmt(this.best)+'</div><div style="font-size:15px;color:#cfe;margin-top:4px">premi R per ripartire</div>'; },
   update(dt){
     if(!this.on) return;
+    if(typeof REG!=='undefined' && REG.on) REG.update(dt);
     if(this.countdown>0){
       this.countdown-=dt; const n=Math.ceil(this.countdown);
       if(this.countdown<=0){ this.running=true; this.t=0; this.lapStartT=0; this.flash('VIA! 🟢'); }
@@ -1292,6 +1380,129 @@ const RACE = {
   }
 };
 
+// ---------- Regatta school (RRS World Sailing) ----------
+const REG = {
+  on:false,
+  P0:{x:-48,z:-12}, P1:{x:-44,z:12},
+  grp:null, t:0, total:180, started:false, favEnd:'comitato (dritta)',
+  ocs:false, ocsReturned:true,
+  pen:0, penReq:0, penNet:0, penMsg:'', lastH:Math.PI/2,
+  ai:[], touched:{}, sig:{},
+  sched:{1:[60,45,15], 3:[180,120,60], 5:[300,240,60]},
+  courseSide(x,z){ const cross=(this.P1.x-this.P0.x)*(z-this.P0.z)-(this.P1.z-this.P0.z)*(x-this.P0.x); return cross<0; },
+  fmt(s){ s=Math.max(0,s); const m=Math.floor(s/60), r=Math.floor(s-m*60); return m+':'+String(r).padStart(2,'0'); },
+  flag(code){ const F={ class:['linear-gradient(135deg,#e23 0 50%,#fff 50% 100%)','1'], P:['#1f5fd8','P'], I:['#f2c200','I'], X:['#ffffff','X'] };
+    const f=F[code]||['#888','?']; const dark=(code==='I'||code==='X'); return '<div class="flag" style="background:'+f[0]+';color:'+(dark?'#222':'#fff')+'">'+f[1]+'</div>'; },
+  build(){
+    if(!this.on) return;
+    const g=new THREE.Group(); this.grp=g; scene.add(g);
+    const boat=new THREE.Group();
+    const hull=new THREE.Mesh(new THREE.BoxGeometry(6,1.5,2.4),new THREE.MeshStandardMaterial({color:0x14406b,roughness:0.6})); hull.position.y=1.0; boat.add(hull);
+    const cab=new THREE.Mesh(new THREE.BoxGeometry(2.3,1.3,1.8),new THREE.MeshStandardMaterial({color:0xf2f4f7,roughness:0.5})); cab.position.set(-0.9,2.2,0); boat.add(cab);
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,5,8),new THREE.MeshStandardMaterial({color:0xffffff})); pole.position.set(1.7,3.5,0); boat.add(pole);
+    const rcflag=new THREE.Mesh(new THREE.PlaneGeometry(1.4,0.9),new THREE.MeshStandardMaterial({color:0xff6a00,side:THREE.DoubleSide})); rcflag.position.set(1.0,5.2,0); boat.add(rcflag);
+    const lab=makeLabel('COMITATO','#0a2740'); lab.position.set(0,6.5,0); boat.add(lab);
+    boat.position.set(this.P1.x,0,this.P1.z); boat.rotation.y=Math.PI/2; g.add(boat);
+    const pin=new THREE.Group();
+    const pb=new THREE.Mesh(new THREE.CylinderGeometry(1.0,1.4,2.4,14),new THREE.MeshStandardMaterial({color:0xff8a1f,emissive:0xff8a1f,emissiveIntensity:0.3,roughness:0.5})); pb.position.y=1.2; pin.add(pb);
+    const pp=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,4,8),new THREE.MeshStandardMaterial({color:0xffffff})); pp.position.y=3.4; pin.add(pp);
+    const plab=makeLabel('PIN','#0a2740'); plab.position.set(0,5.4,0); pin.add(plab);
+    pin.position.set(this.P0.x,0,this.P0.z); g.add(pin);
+    const lg=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(this.P0.x,0.15,this.P0.z),new THREE.Vector3(this.P1.x,0.15,this.P1.z)]);
+    g.add(new THREE.Line(lg,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.75})));
+    this.favEnd=(this.P1.x>this.P0.x)?'comitato (dritta)':'pin (sinistra)';
+  },
+  teardownAI(){ for(const a of this.ai){ if(a.G){ if(a.G.parts&&a.G.parts.root) scene.remove(a.G.parts.root); if(a.G.marker) scene.remove(a.G.marker); } } this.ai=[]; },
+  reset(){
+    this.total=(cfg.seq?+cfg.seq:3)*60;
+    this.t=0; this.started=false; this.ocs=false; this.ocsReturned=true;
+    this.pen=0; this.penReq=0; this.penNet=0; this.penMsg=''; this.touched={}; this.sig={}; this.lastH=Math.PI/2;
+    S.pos.set(-60,0,2); S.heading=Math.PI/2; S.vel=2;
+    if(typeof wakePts!=='undefined') wakePts.length=0;
+    this.teardownAI(); this.buildAI(+cfg.ain|0, cfg.aisk);
+    regOcs.style.display='none'; regPenalty.style.display='none';
+    regHud.style.display='block'; regStand.style.display=(this.ai.length?'block':'none'); rcBig.style.display='none';
+  },
+  buildAI(n,skill){
+    const names=['Luca','Sofia','Andrea','Anya','Kai','Nico','Lena','Théo']; const cols=['#ff5a5f','#ffd23f','#7cc4ff','#b07cff','#5fe08a','#ff9d4d'];
+    for(let i=0;i<n;i++){
+      let s; if(skill==='strong') s=0.85+Math.random()*0.15; else if(skill==='weak') s=0.42+Math.random()*0.2; else s=0.5+Math.random()*0.45;
+      const laneZ=-9+(i+0.5)*(18/Math.max(1,n));
+      const st={ x:-62-Math.random()*6, y:0.2, z:laneZ, c:cols[i%cols.length], n:names[i%names.length], p:0.05,w:0,f:0,l:0,a:0,b:0,h:Math.PI/2,r:0.3,t:0,s:0 };
+      const G=buildGhost(st);
+      const delay = skill==='strong'? Math.random()*0.8 : skill==='weak'? 1.5+Math.random()*3.5 : Math.random()*2.5;
+      this.ai.push({ x:st.x,y:0.2,z:laneZ,h:Math.PI/2, holdX:-54-Math.random()*4, holdZ:laneZ, spd:6+s*7, skill:s, go:this.total+delay, next:0, lap:0, tack:1, fin:false, t:0, name:st.n, c:st.c, G });
+    }
+  },
+  addPenalty(turns,msg){ if(this.pen>0) return; this.pen=1; this.penReq=turns*Math.PI*2; this.penNet=0; this.penMsg=msg; if(AUD.blip) AUD.blip(330,0.3,'sawtooth',0.25); },
+  angDiff(a,b){ let q=a-b; while(q>Math.PI)q-=2*Math.PI; while(q<-Math.PI)q+=2*Math.PI; return q; },
+  update(dt){
+    if(!this.on) return;
+    const t=(this.t+=dt); const sc=this.sched[cfg.seq]||this.sched[3];
+    const warnAbs=this.total-sc[0], prepAbs=this.total-sc[1], oneAbs=this.total-sc[2], startAbs=this.total; const toStart=startAbs-t;
+    const signal=(k,f,d)=>{ if(!this.sig[k]){ this.sig[k]=1; if(AUD.blip) AUD.blip(f,d,'square',0.28); } };
+    let flags='', phase='';
+    if(t<warnAbs){ phase='In attesa del segnale d’avviso…'; }
+    else if(t<prepAbs){ signal('warn',880,0.18); flags=this.flag('class'); phase='AVVISO · '+this.fmt(toStart); }
+    else if(t<oneAbs){ signal('prep',880,0.18); flags=this.flag('class')+this.flag(cfg.prep); phase='PREPARATORIO ('+cfg.prep+') · '+this.fmt(toStart); }
+    else if(t<startAbs){ signal('one',660,0.7); flags=this.flag('class'); phase='ULTIMO MINUTO · '+this.fmt(toStart); }
+    else {
+      if(!this.started){ this.started=true; signal('go',990,0.22); RACE.running=true; RACE.t=0; RACE.lapStartT=0;
+        if(this.courseSide(S.pos.x,S.pos.z)){ this.ocs=true; this.ocsReturned=false; if(AUD.blip) AUD.blip(990,0.22,'square',0.28); }
+        RACE.flash(this.ocs?'OCS! 🚩':'VIA! 🟢'); }
+      flags=(this.ocs&&!this.ocsReturned)?this.flag('X'):''; phase=(this.ocs&&!this.ocsReturned)?'RICHIAMO X — sei OCS, rientra!':'IN GARA';
+    }
+    if(t>=warnAbs && t<startAbs) phase+=' · favorito: '+this.favEnd;
+    regClock.textContent=(t<startAbs)?this.fmt(toStart):this.fmt(RACE.t);
+    regClock.style.color=(t<startAbs&&toStart<=10)?'#ff6a6a':'#eaf2ff';
+    regFlags.innerHTML=flags; regPhase.textContent=phase;
+    if(this.ocs && !this.ocsReturned){
+      regOcs.style.display='block'; regOcsHow.textContent=(cfg.prep==='I')?'(reg. I: rientra girando attorno a un’estremità)':'(rientra attraversando la linea)';
+      const onPre=!this.courseSide(S.pos.x,S.pos.z);
+      const nearEnd=Math.min(Math.hypot(S.pos.x-this.P0.x,S.pos.z-this.P0.z),Math.hypot(S.pos.x-this.P1.x,S.pos.z-this.P1.z))<6;
+      if(onPre && (cfg.prep!=='I' || nearEnd)){ this.ocsReturned=true; regOcs.style.display='none'; RACE.flash('Rientrato ✓'); }
+    } else if(regOcs.style.display!=='none'){ regOcs.style.display='none'; }
+    const dh=this.angDiff(S.heading,this.lastH); this.lastH=S.heading;
+    if(this.pen>0 && !S.airborne){ this.penNet+=dh; if(Math.abs(this.penNet)>=this.penReq){ this.pen=0; this.penReq=0; this.penNet=0; regPenalty.style.display='none'; RACE.flash('Penalità scontata ✓'); } }
+    if(this.pen>0){ regPenalty.style.display='block'; const turns=this.penReq/(Math.PI*2), done=Math.abs(this.penNet)/(Math.PI*2); regPenalty.innerHTML=this.penMsg+'<br>giri: '+done.toFixed(2)+' / '+turns.toFixed(0); }
+    if(RACE.running && !RACE.finished && RACE.marks){
+      RACE.marks.forEach((mk,i)=>{ if(mk.obj){ const d=Math.hypot(S.pos.x-mk.def.x,S.pos.z-mk.def.z); const key='m'+i+'_'+RACE.lap;
+        if(d<2.4 && !this.touched[key]){ this.touched[key]=1; this.addPenalty(1,'Hai toccato la boa '+(i+1)+' — 1 giro (reg.31)'); } } });
+    }
+    if(RACE.running && this.pen===0){
+      for(const a of this.ai){ if(a.fin) continue; if(Math.hypot(S.pos.x-a.x,S.pos.z-a.z)<3.4){
+        let give=false, why=''; if(S.tack!==a.tack){ if(S.tack<0){ give=true; why='Eri su mure a sinistra: dovevi dare strada (reg.10)'; } }
+        else if(S.pos.x>a.x){ give=true; why='Eri sopravento: dovevi stare libero (reg.11)'; }
+        if(give) this.addPenalty(2,why); break;
+      } }
+    }
+    this.aiStep(dt); if(this.ai.length) this.standings();
+  },
+  aiStep(dt){
+    for(const a of this.ai){
+      if(a.fin){ poseGhost(a.G,dt); continue; }
+      if(this.t<a.go){ a.x+=(a.holdX-a.x)*Math.min(1,dt*0.6); a.z+=(a.holdZ-a.z)*Math.min(1,dt*0.6); a.y=0.2; a.h=Math.PI/2; }
+      else {
+        const m=RACE.def[RACE.seq[a.next]]||RACE.def[3]; const dx=m.x-a.x, dz=m.z-a.z, dist=Math.hypot(dx,dz);
+        let th=Math.atan2(dx,dz); const up=Math.cos(th);
+        if(m.kind==='windward' && up>0.7){ a.tack=(a.z<m.z?-1:1); th=Math.atan2(1,(a.z<m.z?1:-1)*1); } else a.tack=(Math.sin(th)>=0?1:-1);
+        th+=(1-a.skill)*0.25*Math.sin(this.t*1.7+a.holdZ); a.h+=this.angDiff(th,a.h)*Math.min(1,dt*2.2);
+        a.x+=Math.sin(a.h)*a.spd*dt; a.z+=Math.cos(a.h)*a.spd*dt; a.y=1.05;
+        if(dist<(m.kind==='finish'?RACE.lineR:RACE.R)){ if(m.kind==='finish'){ a.fin=true; a.t=RACE.t; } else if(m.kind==='leeward'){ a.lap++; a.next++; } else a.next++; }
+      }
+      const tg=a.G.tgt; tg.x=a.x; tg.y=a.y; tg.z=a.z; tg.h=a.h; tg.p=0.06; tg.w=0; tg.f=0; tg.l=0; tg.a=0; tg.b=0; tg.r=a.tack*0.4; tg.t=0; tg.s=0; poseGhost(a.G,dt);
+    }
+  },
+  prog(next,lap,x,z){ const m=RACE.def[RACE.seq[next]]||RACE.def[3]; return lap*100000+next*1000-Math.hypot(x-m.x,z-m.z); },
+  standings(){
+    const list=[{n:'Tu', me:true, p:RACE.finished?2e9:this.prog(RACE.next,RACE.lap,S.pos.x,S.pos.z), fin:RACE.finished}];
+    for(const a of this.ai) list.push({n:a.name, me:false, p:a.fin?(1e9+1/(a.t+1)):this.prog(a.next,a.lap,a.x,a.z), fin:a.fin});
+    list.sort((u,v)=>v.p-u.p);
+    let h='<h4>Classifica</h4>'; list.forEach((e,i)=>{ h+='<div class="rs'+(e.me?' me':'')+'"><span>'+(i+1)+'. '+e.n+'</span><span>'+(e.fin?'🏁':'')+'</span></div>'; });
+    regStand.innerHTML=h;
+  },
+  teardown(){ this.teardownAI(); if(this.grp){ scene.remove(this.grp); this.grp=null; } regHud.style.display='none'; regOcs.style.display='none'; regPenalty.style.display='none'; regStand.style.display='none'; }
+};
 // ---------- Start / stop ----------
 $('#play').onclick=()=>{ start(); };
 backBtn.onclick=()=>{ stop(); };
@@ -1318,9 +1529,11 @@ function start(){
   $('#windV').textContent=cfg.wind+' kn';
   if(RACE.on){ RACE.reset(); raceHud.style.display='block'; scoreWrap.style.display='none'; }
   else { raceHud.style.display='none'; rcBig.style.display='none'; scoreWrap.style.display='block'; }
+  if(typeof REG==='undefined' || !REG.on){ regHud.style.display='none'; regStand.style.display='none'; regOcs.style.display='none'; regPenalty.style.display='none'; }
 }
 function stop(){ playing=false; AUD.silence(); menu.style.display='flex'; hud.style.display='none';
   scoreWrap.style.display='none'; backBtn.style.display='none'; raceHud.style.display='none'; rcBig.style.display='none';
+  if(typeof REG!=='undefined') REG.teardown();
   $('#windRose').style.display='none'; $('#warn').style.display='none'; }
 
 /* =========================================================================
