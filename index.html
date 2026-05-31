@@ -248,7 +248,7 @@
         <input id="musicFile" type="file" accept="audio/*" style="display:none">
       </label>
       <span id="musicName" style="font-size:12px;color:var(--muted);margin-left:8px"></span>
-      <div class="advice" style="margin-top:6px">Online il brano non è incluso (copyright): carica la <b>tua copia legale</b> (es. <i>War — Joe Satriani</i>) e parte in loop. <kbd>M</kbd> per mutare.</div>
+      <div class="advice" style="margin-top:6px">Online il brano non è incluso (copyright): carica la <b>tua copia legale</b> (es. <i>War — Joe Satriani</i>) e parte in loop. <kbd>M</kbd> per mutare.<br><span style="color:var(--muted);font-size:11px">Musica online di default: <i>"Hot Pursuit"</i> — Kevin MacLeod (incompetech.com), licenza CC‑BY 4.0.</span></div>
     </div>
 
     <div class="keys">
@@ -963,7 +963,10 @@ const AUD = {
       el.loop = true; el.crossOrigin = 'anonymous'; el.preload = 'auto';
       // On the public site the copyrighted track is NOT shipped (copyright). Players load
       // their own legal copy via the menu → that object URL takes precedence here.
-      el.src = this.customURL ? this.customURL : encodeURI('War [Joe Satriani].mp3');
+      el.src = this.customURL ? this.customURL : (
+        (location.protocol==='file:' || location.hostname==='localhost' || location.hostname==='127.0.0.1')
+          ? encodeURI('War [Joe Satriani].mp3')
+          : encodeURI('Hot Pursuit.mp3'));
       const src = ctx.createMediaElementSource(el);
       src.connect(mg);
       el.addEventListener('error', ()=>{ this.musicOk=false; });
