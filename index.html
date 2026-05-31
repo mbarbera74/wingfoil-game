@@ -530,8 +530,8 @@ function boardOutline(scale){
   const L=1.82, hw=0.34, N=34, right=[];
   for(let i=0;i<=N;i++){ const t=i/N; const y=(-L/2+t*L)*scale;   // t=0 NOSE (+Z), t=1 TAIL (-Z)
     let w;
-    if(t<0.55){                                   // rounded pointed nose → max width
-      const k=t/0.55; w=hw*Math.pow(Math.sin(k*Math.PI*0.5),0.72);
+    if(t<0.55){                                   // rounded, fuller nose (soft tip, wider shoulders)
+      const k=t/0.55; w=hw*(0.13 + 0.84*Math.pow(Math.sin(k*Math.PI*0.5),0.58));
     } else if(t<0.74){                            // body, widest just ahead of the tail
       w=hw*(0.97+0.03*Math.sin((t-0.55)/0.19*Math.PI));
     } else {                                       // round tail: soft curved end, narrower than the nose
@@ -549,7 +549,7 @@ function boardOutline(scale){
 function buildBoard(){
   const g=new THREE.Group();
   // nose rocker (+Z lifts up) + slight tail kick (-Z) → real board profile from the side
-  const rock=(geo)=>{ const pa=geo.attributes.position; for(let i=0;i<pa.count;i++){ const f=pa.getZ(i)/0.91; const lift=(f>0?0.17:0.07)*f*f; pa.setY(i, pa.getY(i)+lift);} pa.needsUpdate=true; geo.computeVertexNormals(); };
+  const rock=(geo)=>{ const pa=geo.attributes.position; for(let i=0;i<pa.count;i++){ const f=pa.getZ(i)/0.91; const lift=(f>0?0.095:0.045)*f*f; pa.setY(i, pa.getY(i)+lift);} pa.needsUpdate=true; geo.computeVertexNormals(); };
   const geo=new THREE.ExtrudeGeometry(boardOutline(1),
     {depth:0.12,bevelEnabled:true,bevelThickness:0.05,bevelSize:0.055,bevelSegments:5,steps:1,curveSegments:24});
   geo.rotateX(-Math.PI/2); geo.translate(0,-0.06,0); rock(geo);
@@ -568,14 +568,15 @@ function buildBoard(){
   // Foot straps. The two FRONT straps form a "V" (each angled ~45° toward the nose+centreline,
   // mirror of each other). The BACK strap is LONGITUDINAL (along the board length) so the rear
   // foot enters it sideways/across. These fixed orientations are mirrored by the feet below.
-  function strapAt(lx,fz,rot){
-    const f=fz/0.91, deckTop=0.085+(fz>0?0.17:0.07)*f*f;   // sit on the rocked deck
-    const s=new THREE.Mesh(new THREE.TorusGeometry(0.085,0.024,10,20,Math.PI),
+  function strapAt(lx,fz,rot,rad){
+    const f=fz/0.91, deckTop=0.085+(fz>0?0.095:0.045)*f*f;   // sit on the (gentler) rocked deck
+    const R=rad||0.085;
+    const s=new THREE.Mesh(new THREE.TorusGeometry(R,0.024,10,20,Math.PI),
       new THREE.MeshStandardMaterial({color:0x141821,roughness:0.85,emissive:0x05070b,emissiveIntensity:0.4}));
     s.position.set(lx,deckTop,fz); s.rotation.y=rot||0; g.add(s); return s;
   }
   strapAt(0.10,0.30, -Math.PI/4); strapAt(-0.10,0.30, Math.PI/4); // front-right, front-left → V
-  strapAt(0,-0.20, Math.PI/2);                 // back-central, LONGITUDINAL (along board length)
+  strapAt(0,-0.32, Math.PI/2, 0.11);           // back-central, LONGITUDINAL, set back from the rear foot so it stays visible
   return g;
 }
 
