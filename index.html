@@ -597,8 +597,8 @@ function buildFoil(mastH){
   const fw=buildSweptWing({span:0.82+cfg.wing/2400*1.05,chordRoot:0.205,chordTip:0.055,thick:0.36,sweep:-0.12,dihedral:0.05,color:wingCol});
   fw.position.set(0,-mastH-0.02,0.36); g.add(fw);
   // rear stabilizer
-  // rear stabilizer: also wide & open (high-aspect, nearly flat) like the reference
-  const rw=buildSweptWing({span:0.50,chordRoot:0.10,chordTip:0.04,thick:0.40,sweep:-0.10,dihedral:0.03,color:wingCol});
+  // rear stabilizer: even wider & more open (very high-aspect, nearly flat) like the reference
+  const rw=buildSweptWing({span:0.66,chordRoot:0.085,chordTip:0.032,thick:0.36,sweep:-0.08,dihedral:0.02,color:wingCol});
   rw.position.set(0,-mastH-0.02,-0.42); g.add(rw);
   return g;
 }
