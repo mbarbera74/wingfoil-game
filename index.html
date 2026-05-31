@@ -554,7 +554,7 @@ function buildBoard(){
   const geo=new THREE.ExtrudeGeometry(boardOutline(1),
     {depth:0.12,bevelEnabled:true,bevelThickness:0.05,bevelSize:0.055,bevelSegments:5,steps:1,curveSegments:24});
   geo.rotateX(-Math.PI/2); geo.translate(0,-0.06,0); rock(geo);
-  const board=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0xeef2f7,roughness:0.45,metalness:0.05}));
+  const board=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x1f63d6,roughness:0.45,metalness:0.05}));
   board.castShadow=true; board.receiveShadow=true; g.add(board);
   // deck traction pad
   const pgeo=new THREE.ExtrudeGeometry(boardOutline(0.82),{depth:0.02,bevelEnabled:false,curveSegments:24});
@@ -564,7 +564,7 @@ function buildBoard(){
   // colour rail stripe
   const sgeo=new THREE.ExtrudeGeometry(boardOutline(0.94),{depth:0.03,bevelEnabled:false,curveSegments:24});
   sgeo.rotateX(-Math.PI/2); sgeo.translate(0,-0.055,0); rock(sgeo);
-  const stripe=new THREE.Mesh(sgeo,new THREE.MeshStandardMaterial({color:0x1b9e98,roughness:0.5}));
+  const stripe=new THREE.Mesh(sgeo,new THREE.MeshStandardMaterial({color:0x123e86,roughness:0.5}));
   g.add(stripe);
   // Foot straps. The two FRONT straps form a "V" (each angled ~45° toward the nose+centreline,
   // mirror of each other). The BACK strap is LONGITUDINAL (along the board length) so the rear
@@ -629,18 +629,16 @@ function buildRider(){
   const bun=new THREE.Mesh(new THREE.SphereGeometry(0.05,10,8),new THREE.MeshStandardMaterial({color:0x3a2a1f,roughness:0.9}));
   bun.position.set(-0.12,0.03,0); headG.add(bun);
 
-  // arms reach toward the wind (+Z) toward the wing boom, with a natural bent elbow
+  // arms are clean 2-bone limbs built ALONG +Z (shoulder→hand), then AIMED at the boom grips
+  // each frame (like the legs are aimed at the feet) so the hands always sit on the boom.
   function arm(side){
     const grp=new THREE.Group(); grp.position.set(side*0.16,1.34,0.02);
-    // upper arm drops forward-down from the shoulder
-    const upper=new THREE.Mesh(new THREE.CapsuleGeometry(0.052,0.22,6,10),suit);
-    upper.position.set(0,-0.03,0.14); upper.rotation.x=-1.0; grp.add(upper);
-    // elbow joint
-    const elbow=new THREE.Mesh(new THREE.SphereGeometry(0.05,10,8),suit); elbow.position.set(0,-0.07,0.28); grp.add(elbow);
-    // forearm angles back UP toward the boom → bent-elbow grip
-    const fore=new THREE.Mesh(new THREE.CapsuleGeometry(0.044,0.24,6,10),skin);
-    fore.position.set(-side*0.015,0.04,0.42); fore.rotation.x=-1.78; grp.add(fore);
-    const hand=new THREE.Mesh(new THREE.SphereGeometry(0.05,10,8),skin); hand.name='hand'; hand.position.set(0,0.13,0.53); grp.add(hand);
+    const upper=new THREE.Mesh(new THREE.CapsuleGeometry(0.05,0.20,6,10),suit);
+    upper.rotation.x=Math.PI/2; upper.position.set(0,0,0.13); grp.add(upper);
+    const elbow=new THREE.Mesh(new THREE.SphereGeometry(0.05,10,8),suit); elbow.position.set(0,0,0.26); grp.add(elbow);
+    const fore=new THREE.Mesh(new THREE.CapsuleGeometry(0.043,0.20,6,10),skin);
+    fore.rotation.x=Math.PI/2; fore.position.set(0,0,0.40); grp.add(fore);
+    const hand=new THREE.Mesh(new THREE.SphereGeometry(0.052,10,8),skin); hand.name='hand'; hand.position.set(0,0,0.52); grp.add(hand);
     return grp;
   }
   const armR=arm(1), armL=arm(-1);
@@ -696,9 +694,9 @@ function buildWingSail(size){
 
   const leMat=new THREE.MeshStandardMaterial({color:0xeef3f7,roughness:0.42,metalness:0.05});
   const white =new THREE.MeshStandardMaterial({color:0xf4f7fa,roughness:0.6,side:THREE.DoubleSide});
-  const yellow=new THREE.MeshStandardMaterial({color:0xffc21c,roughness:0.6,side:THREE.DoubleSide});
+  const yellow=new THREE.MeshStandardMaterial({color:0x3f86d8,roughness:0.6,side:THREE.DoubleSide}); // recoloured blue
   const blue  =new THREE.MeshStandardMaterial({color:0x2b6fb0,roughness:0.6,side:THREE.DoubleSide});
-  const teal  =new THREE.MeshStandardMaterial({color:0x17a2a8,roughness:0.6,side:THREE.DoubleSide});
+  const teal  =new THREE.MeshStandardMaterial({color:0x1c5fb0,roughness:0.6,side:THREE.DoubleSide}); // recoloured blue
   const winMat=new THREE.MeshStandardMaterial({color:0xdff2f7,roughness:0.2,metalness:0.05,side:THREE.DoubleSide,transparent:true,opacity:0.5});
 
   const cs=(s)=>Math.cos(s*Math.PI/2);   // 1 at centre, 0 at tips
@@ -767,10 +765,11 @@ function buildWingSail(size){
   boom.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),sTE.clone().sub(sLE).normalize());
   g.add(boom);
   const hMat=new THREE.MeshStandardMaterial({color:0x161f27,roughness:0.95});
-  [0.30,0.58].forEach(f=>{
+  ['gripFront','gripBack'].forEach((nm,gi)=>{
+    const f=[0.16,0.52][gi];                       // front grip well forward toward the LE/punta
     const p=sLE.clone().lerp(sTE,f);
     const grip=new THREE.Mesh(new THREE.CylinderGeometry(tubeR0*0.9,tubeR0*0.9,0.18,10),hMat);
-    grip.position.copy(p); grip.quaternion.copy(boom.quaternion); g.add(grip);
+    grip.name=nm; grip.position.copy(p); grip.quaternion.copy(boom.quaternion); g.add(grip);
   });
   // front HANDLE on the punta (LE tip) — the rider grabs THIS one-handed when the wing is
   // dropped low to surf a wave (real wings have a grab handle on the leading-edge nose).
@@ -1490,25 +1489,37 @@ function step(dt){
     // slightly LESS turned (the wind-up comes from the hips/feet instead). Inverted vs before.
     bp.torsoG.rotation.y = lerp(0.42, 0.22, S.switchAnim);
     bp.headG.rotation.y  = lerp(0.6, -0.3, S.switchAnim);
-    // ARMS: overhead during a tack/jibe; when DEPOWERED (↓ to surf) it goes ONE-HANDED — the
-    // REAR hand (the one nearer the TAIL, so it can carry the wing furthest back) grips the
-    // punta handle; the FRONT hand lets go and the arm hangs relaxed. Which hand is "rear"
-    // depends only on the rider's facing: nose is rider-local −sin(riderYaw) on X, so the rear
-    // hand is +X (armR) on starboard (sin>0) and −X (armL) on port — it tracks tacks/jibes.
+    // ARMS: clean 2-bone limbs AIMED at the boom grips so the hands always sit on the boom
+    // (front hand well forward toward the punta, back hand behind). The arms naturally follow
+    // the wing overhead during a tack/jibe. When DEPOWERED (↓) it goes one-handed.
     const armLift = arc*1.15;
     const reach = S.sailLow;
     const rearIsL = Math.sin(S.riderYaw) < 0;
     const rearArm = rearIsL ? bp.armL : bp.armR;
     const frontArm = rearIsL ? bp.armR : bp.armL;
-    bp.armR.rotation.x = -armLift;  bp.armR.rotation.z = 0;
-    bp.armL.rotation.x = -armLift;  bp.armL.rotation.z = 0;
-    // natural relaxed two-handed grip when powered: the FRONT hand reaches forward toward the
-    // wing's punta (LE tip), the BACK hand stays tucked closer to the body. Fades out during
-    // maneuvers (arc) and depower (reach) so those poses are unaffected.
-    const grip=(1-Math.min(1,reach*1.4))*(1-Math.min(1,arc));
-    frontArm.rotation.x=-armLift-0.22*grip; frontArm.position.set(frontArm.position.x,1.34+0.03*grip,0.02+0.15*grip);
-    rearArm.rotation.x =-armLift+0.12*grip;  rearArm.position.set(rearArm.position.x,1.34-0.01*grip,0.02-0.04*grip);
-    if(reach>0.001){
+    const rearSx  = rearIsL ? -0.16 : 0.16;
+    const frontSx = rearIsL ?  0.16 : -0.16;
+    const gF = wingMesh && wingMesh.getObjectByName('gripFront');
+    const gB = wingMesh && wingMesh.getObjectByName('gripBack');
+    const FWD = new THREE.Vector3(0,0,1);
+    const aimArm=(a,sx,tgt)=>{
+      const sh=new THREE.Vector3(sx,1.34,0.02);
+      const d=new THREE.Vector3().subVectors(tgt,sh); const L=d.length();
+      a.position.copy(sh); a.scale.set(1,1,THREE.MathUtils.clamp(L/0.52,0.55,1.75));
+      a.quaternion.setFromUnitVectors(FWD, d.normalize());
+    };
+    if(reach<0.12 && gF && gB){
+      board.updateMatrixWorld(true);
+      const tF=rider.worldToLocal(gF.getWorldPosition(new THREE.Vector3()));
+      const tB=rider.worldToLocal(gB.getWorldPosition(new THREE.Vector3()));
+      aimArm(frontArm, frontSx, tF);
+      aimArm(rearArm,  rearSx,  tB);
+    } else {
+      // depower: reset the IK transforms, then pose one-handed with simple rotations
+      frontArm.scale.set(1,1,1); rearArm.scale.set(1,1,1);
+      frontArm.quaternion.identity(); rearArm.quaternion.identity();
+      frontArm.position.set(frontSx,1.34,0.02); rearArm.position.set(rearSx,1.34,0.02);
+      bp.armR.rotation.set(-armLift,0,0); bp.armL.rotation.set(-armLift,0,0);
       // rear (grab) hand drops DOWN & a touch toward the tail to hold the low handle
       rearArm.rotation.x = -armLift + reach*1.0;
       rearArm.rotation.z = (rearIsL? -1:1) * reach*0.28;
