@@ -257,6 +257,7 @@
       <kbd>F</kbd> vira / stramba (gira la vela sopra la testa) &nbsp; <kbd>S</kbd> switch piedi (raddrizza) &nbsp; <kbd>↓</kbd> abbassa la vela (surf) &nbsp; <kbd>Spazio</kbd> pop / salto<br>
       In aria: <kbd>A</kbd><kbd>D</kbd> spin (rotazione) &nbsp; <kbd>Q</kbd><kbd>E</kbd> roll/backflip &nbsp; <kbd>Shift</kbd> grab &nbsp;
       <kbd>C</kbd> camera &nbsp; <kbd>R</kbd> reset &nbsp; <kbd>M</kbd> audio on/off<br>
+      <span style="color:var(--accent2)">🎮 <b>Joystick USB</b>: collegalo e premi un tasto — stick sx = vira/spin, <b>RT</b> pump, <b>LT</b> surf, <b>A</b> salto, <b>B</b> vira(F), <b>X</b> switch(S), <b>Y</b> grab, <b>LB/RB</b> roll, <b>Start</b> reset.</span><br>
       <span style="color:var(--accent2)">In una virata/strambata (F) la <b>vela gira sopra la testa</b> e passa dall'altro lato: i piedi restano fermi, quindi ti ritrovi in <b>switch</b>. Premi <b>S</b> per <b>scambiare i piedi</b> (davanti↔dietro) e raddrizzarti. A tutta velocità (fino a 30 kn) i salti diventano più alti.</span><br>
       <span style="color:#ffd23f">🏁 <b>Race</b> — percorso World Sailing <b>bolina/poppa</b> (windward-leeward + offset): segui la <b>freccia</b>, il <b>fascio azzurro</b> e l'<b>anello giallo</b> che gira nel verso giusto. Ogni giro è <b>1 Bolina → 2 Offset → 3 Poppa</b>, tutte si girano <b>a SINISTRA</b> (port, antiorario). Ripeti il circuito per <b>2 giri</b> e <b>solo alla fine</b> tagli la <b>linea verde d'arrivo</b> (nei giri intermedi NON passi dal traguardo: giri la poppa e risali in bolina). La boa 1 è di <b>bolina</b> (controvento): devi bordeggiare. <kbd>R</kbd> per ripartire. Le <b>striature bianche sull'acqua</b> scorrono sempre nel verso in cui soffia il vento (sottovento).</span>
     </div>
@@ -584,14 +585,15 @@ function boardOutline(scale){
   sh.closePath(); return sh;
 }
 
-function buildBoard(){
+function buildBoard(col){
+  const C = (col!=null) ? new THREE.Color(col) : null;
   const g=new THREE.Group();
   // nose rocker (+Z lifts up) + slight tail kick (-Z) → real board profile from the side
   const rock=(geo)=>{ const pa=geo.attributes.position; for(let i=0;i<pa.count;i++){ const f=pa.getZ(i)/0.91; const lift=(f>0?0.095:0.045)*f*f; pa.setY(i, pa.getY(i)+lift);} pa.needsUpdate=true; geo.computeVertexNormals(); };
   const geo=new THREE.ExtrudeGeometry(boardOutline(1),
     {depth:0.12,bevelEnabled:true,bevelThickness:0.05,bevelSize:0.055,bevelSegments:5,steps:1,curveSegments:24});
   geo.rotateX(-Math.PI/2); geo.translate(0,-0.06,0); rock(geo);
-  const board=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x4fc1e9,roughness:0.45,metalness:0.05}));
+  const board=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:(C?C.clone():0x4fc1e9),roughness:0.45,metalness:0.05}));
   board.castShadow=true; board.receiveShadow=true; g.add(board);
   // deck traction pad
   const pgeo=new THREE.ExtrudeGeometry(boardOutline(0.82),{depth:0.02,bevelEnabled:false,curveSegments:24});
@@ -601,7 +603,7 @@ function buildBoard(){
   // colour rail stripe
   const sgeo=new THREE.ExtrudeGeometry(boardOutline(0.94),{depth:0.03,bevelEnabled:false,curveSegments:24});
   sgeo.rotateX(-Math.PI/2); sgeo.translate(0,-0.055,0); rock(sgeo);
-  const stripe=new THREE.Mesh(sgeo,new THREE.MeshStandardMaterial({color:0x123e86,roughness:0.5}));
+  const stripe=new THREE.Mesh(sgeo,new THREE.MeshStandardMaterial({color:(C?C.clone().multiplyScalar(0.5):0x123e86),roughness:0.5}));
   g.add(stripe);
   // Foot straps. The two FRONT straps form a "V" (each angled ~45° toward the nose+centreline,
   // mirror of each other). The BACK strap is LONGITUDINAL (along the board length) so the rear
@@ -643,12 +645,13 @@ function buildFoil(mastH){
 // Rider built facing +Z = WINDWARD (arms/wing go +Z). In buildRig the group is
 // rotated +90° about Y so the body stands SIDEWAYS to travel: front foot -> nose (+Z world),
 // back foot -> tail, chest toward the wind, looking forward over the front shoulder.
-function buildRider(){
+function buildRider(col){
+  const C = (col!=null) ? new THREE.Color(col) : null;
   const g=new THREE.Group();
   const suit=new THREE.MeshStandardMaterial({color:0x12181f,roughness:0.62});
   const accent=new THREE.MeshStandardMaterial({color:0x1b9e98,roughness:0.6});
   const skin=new THREE.MeshStandardMaterial({color:0xd6a07a,roughness:0.75});
-  const shirt=new THREE.MeshStandardMaterial({color:0x4fc1e9,roughness:0.6});   // celeste jersey
+  const shirt=new THREE.MeshStandardMaterial({color:(C?C.clone():0x4fc1e9),roughness:0.6});   // celeste jersey
   const helmet=new THREE.MeshStandardMaterial({color:0x9aa3ab,roughness:0.55,metalness:0.1}); // grey helmet
 
   // pelvis in its own group so the hips can stay SQUARE to the legs in normal stance and
@@ -723,7 +726,8 @@ function buildRider(){
 
 // Wing in local frame: strut along X (the rider grips it fore-aft after rotation),
 // canopy is a half-disc rising +Y, leading-edge tube as the curved rim. Windward = +Z bow.
-function buildWingSail(size){
+function buildWingSail(size, col){
+  const C = (col!=null) ? new THREE.Color(col) : null;
   // Correct wing structure:
   //  - chord (LE→TE) runs along X  → LE/front point at -X (toward nose), TE at +X (tail)
   //  - span (tip→tip) runs vertically along Y  → top tip +Y, bottom tip -Y
@@ -749,6 +753,7 @@ function buildWingSail(size){
   const yellow=new THREE.MeshStandardMaterial({color:0x3f86d8,roughness:0.6,side:THREE.DoubleSide}); // recoloured blue
   const blue  =new THREE.MeshStandardMaterial({color:0x2b6fb0,roughness:0.6,side:THREE.DoubleSide});
   const teal  =new THREE.MeshStandardMaterial({color:0x1c5fb0,roughness:0.6,side:THREE.DoubleSide}); // recoloured blue
+  if(C){ yellow.color.copy(C); blue.color.copy(C).multiplyScalar(0.78); teal.color.copy(C).multiplyScalar(0.6); }
   const winMat=new THREE.MeshStandardMaterial({color:0xdff2f7,roughness:0.2,metalness:0.05,side:THREE.DoubleSide,transparent:true,opacity:0.5});
 
   const cs=(s)=>Math.cos(s*Math.PI/2);   // 1 at centre, 0 at tips
@@ -839,23 +844,23 @@ function buildWingSail(size){
 // Build a complete athlete (board + foil + rider + handheld wing) as a self-contained
 // group. Returns the parts so it can be reused both for the LOCAL player and for remote
 // "ghost" players in multiplayer — without touching any module globals.
-function buildAthlete(sailSize, mastCm){
+function buildAthlete(sailSize, mastCm, col){
   const root=new THREE.Group();
-  const deck=buildBoard(); root.add(deck);
+  const deck=buildBoard(col); root.add(deck);
   const mastH=mastCm/100*1.05;
   root.add(buildFoil(mastH));
   const rdr=new THREE.Group(); rdr.position.y=-0.02; rdr.rotation.y=Math.PI/2; root.add(rdr);
-  const bp=buildRider(); rdr.add(bp);
+  const bp=buildRider(col); rdr.add(bp);
   const rg=new THREE.Group(); rdr.add(rg);
   rg.position.set(0,1.28,0.46);
   rg.rotation.order='YXZ';
   rg.rotation.set(-0.16,0,0.06);
-  const wing=buildWingSail(sailSize); rg.add(wing);
+  const wing=buildWingSail(sailSize, col); rg.add(wing);
   return {root, rider:rdr, bodyParts:bp, rig:rg, wingMesh:wing};
 }
 
 function buildRig(){
-  const A=buildAthlete(cfg.sail, cfg.mast);
+  const A=buildAthlete(cfg.sail, cfg.mast, (typeof NET!=='undefined'&&NET.active)?NET.color:null);
   board=A.root; scene.add(board);
   rider=A.rider; bodyParts=A.bodyParts; rig=A.rig; wingMesh=A.wingMesh;
 }
@@ -1324,7 +1329,7 @@ function buildMarker(st){
 }
 
 function buildGhost(st){
-  const A=buildAthlete(5,85);
+  const A=buildAthlete(5,85, st.c);
   A.root.position.set(st.x,st.y,st.z);
   scene.add(A.root);
   const marker=buildMarker(st);
@@ -1498,8 +1503,6 @@ const NET = {
 };
 function setStatus(html,err){ const el=$('#mpStatus'); if(!el) return; el.innerHTML=html; el.style.color=err?'#ff6b6b':'var(--accent2)';
   if(NET.active){ $('#mpHost').disabled=true; $('#mpJoin').disabled=true; $('#mpLeave').style.display='inline-block'; } }
-
-
 // ---------- Resize ----------
 addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight); });
@@ -1542,11 +1545,45 @@ function animateWater(){
   p.needsUpdate=true; col.needsUpdate=true; waterGeo.computeVertexNormals();
 }
 
+// ---------- Gamepad / joystick (USB) ----------
+// Maps a standard gamepad to the same keys the keyboard uses, by synthesizing
+// keydown/keyup on transitions — so all existing logic (edge tricks, preventDefault) just works.
+const PAD={ idx:null, prev:{}, dead:0.35,
+  // button index (standard mapping) -> key code
+  btn:{ 0:'Space', 1:'KeyF', 2:'KeyS', 3:'ShiftLeft', 4:'KeyQ', 5:'KeyE',
+        6:'ArrowDown', 7:'ArrowUp', 8:'KeyM', 9:'KeyR', 12:'ArrowUp', 13:'ArrowDown', 14:'ArrowLeft', 15:'ArrowRight' } };
+addEventListener('gamepadconnected', e=>{ PAD.idx=e.gamepad.index;
+  const w=$('#warn'); if(w){ w.textContent='🎮 Joystick collegato: '+(e.gamepad.id||'gamepad'); w.style.display='block'; setTimeout(()=>{ if(playing) w.style.display='none'; }, 3500); } });
+addEventListener('gamepaddisconnected', e=>{ if(PAD.idx===e.gamepad.index) PAD.idx=null; });
+function padFire(type,code){ const ev=new KeyboardEvent(type,{code,key:code,bubbles:true}); window.dispatchEvent(ev); }
+function pollGamepad(){
+  const pads=navigator.getGamepads?navigator.getGamepads():[];
+  let gp=(PAD.idx!=null)?pads[PAD.idx]:null;
+  if(!gp){ for(const p of pads){ if(p){ gp=p; PAD.idx=p.index; break; } } }
+  if(!gp){ return; }
+  const now={};
+  // buttons (triggers are analog: treat >0.4 as pressed)
+  for(const k in PAD.btn){ const b=gp.buttons[k]; if(!b) continue; const code=PAD.btn[k];
+    if(b.pressed||b.value>0.4) now[code]=true; }
+  // left stick X → steering (ArrowLeft/Right)
+  const ax=gp.axes[0]||0;
+  if(ax<-PAD.dead) now['ArrowLeft']=true;
+  if(ax> PAD.dead) now['ArrowRight']=true;
+  // left stick Y up → pump (helps if no triggers)
+  const ay=gp.axes[1]||0;
+  if(ay<-PAD.dead) now['ArrowUp']=true;
+  // edge: fire keydown on new press, keyup on release
+  for(const code in now){ if(!PAD.prev[code]) padFire('keydown',code); }
+  for(const code in PAD.prev){ if(!now[code]) padFire('keyup',code); }
+  PAD.prev=now;
+}
+
 // ---------- Main loop ----------
 const clock=new THREE.Clock();
 function loop(){
   requestAnimationFrame(loop);
   const dt=Math.min(clock.getDelta(),0.05);
+  pollGamepad();
   if(playing) step(dt);
   if(playing) AUD.update();
   if(NET.active) NET.renderGhosts(dt);
@@ -2027,6 +2064,8 @@ function updateHUD(){
       background:rgba(255,176,32,.30);border-color:rgba(255,176,32,.65);font-size:15px}
     #tc-jump.on{background:rgba(255,176,32,.7)}
     #tc-tack{right:198px;bottom:132px;width:64px;height:64px}
+    #tc-switch{right:198px;bottom:220px;width:64px;height:64px;background:rgba(39,150,211,.34);border-color:rgba(39,150,211,.62);font-size:13px}
+    #tc-switch.on{background:rgba(39,150,211,.72)}
     #tc-grab{right:198px;bottom:44px;width:64px;height:64px}
     #tc-flb{left:18px;bottom:182px;width:72px;height:72px;background:rgba(120,90,220,.32);border-color:rgba(150,120,240,.6);font-size:11px}
     #tc-flf{left:106px;bottom:182px;width:72px;height:72px;background:rgba(120,90,220,.32);border-color:rgba(150,120,240,.6);font-size:11px}
@@ -2042,6 +2081,7 @@ function updateHUD(){
     '<div class="tc" id="tc-surf"  data-code="ArrowDown"><span class="ic">&#9660;</span>SURF</div>'+
     '<div class="tc" id="tc-jump"  data-code="Space">JUMP</div>'+
     '<div class="tc" id="tc-tack"  data-code="KeyF" data-tap="1">TACK</div>'+
+    '<div class="tc" id="tc-switch" data-code="KeyS" data-tap="1">SWITCH</div>'+
     '<div class="tc" id="tc-grab"  data-code="ShiftLeft">GRAB</div>'+
     '<div class="tc" id="tc-flb"  data-code="KeyQ"><span class="ic">&#8634;</span>B-LOOP</div>'+
     '<div class="tc" id="tc-flf"  data-code="KeyE"><span class="ic">&#8635;</span>F-LOOP</div>';
