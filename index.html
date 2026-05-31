@@ -1400,6 +1400,64 @@ function updateHUD(){
   }
 }
 
+
+// ---------- Touch controls (mobile) ----------
+(function(){
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints>0;
+  if(!isTouch) return;
+
+  const css = `
+    #touch{position:fixed;inset:0;z-index:20;pointer-events:none;display:none}
+    #touch .tc{position:absolute;pointer-events:auto;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;background:rgba(16,40,68,.45);
+      border:1.5px solid rgba(120,160,210,.45);color:#eaf2ff;border-radius:50%;
+      -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);touch-action:none;
+      user-select:none;-webkit-user-select:none;font:600 12px "Segoe UI",system-ui,Arial,sans-serif;
+      letter-spacing:.3px;text-align:center;line-height:1.05;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+    #touch .tc.on{background:rgba(39,211,196,.6);transform:scale(.93)}
+    #touch .tc .ic{font-size:22px;line-height:1}
+    #tc-left{left:18px;bottom:96px;width:76px;height:76px}
+    #tc-right{left:106px;bottom:96px;width:76px;height:76px}
+    #tc-pump{right:106px;bottom:172px;width:74px;height:74px}
+    #tc-surf{right:106px;bottom:24px;width:74px;height:74px}
+    #tc-jump{right:16px;bottom:92px;width:88px;height:88px;
+      background:rgba(255,176,32,.30);border-color:rgba(255,176,32,.65);font-size:15px}
+    #tc-jump.on{background:rgba(255,176,32,.7)}
+    #tc-tack{right:198px;bottom:132px;width:64px;height:64px}
+    #tc-grab{right:198px;bottom:44px;width:64px;height:64px}
+  `;
+  const st=document.createElement('style'); st.textContent=css; document.head.appendChild(st);
+
+  const wrap=document.createElement('div'); wrap.id='touch';
+  wrap.innerHTML=
+    '<div class="tc" id="tc-left"  data-code="ArrowLeft"><span class="ic">&#9664;</span></div>'+
+    '<div class="tc" id="tc-right" data-code="ArrowRight"><span class="ic">&#9654;</span></div>'+
+    '<div class="tc" id="tc-pump"  data-code="ArrowUp"><span class="ic">&#9650;</span>PUMP</div>'+
+    '<div class="tc" id="tc-surf"  data-code="ArrowDown"><span class="ic">&#9660;</span>SURF</div>'+
+    '<div class="tc" id="tc-jump"  data-code="Space">JUMP</div>'+
+    '<div class="tc" id="tc-tack"  data-code="KeyF" data-tap="1">TACK</div>'+
+    '<div class="tc" id="tc-grab"  data-code="ShiftLeft">GRAB</div>';
+  document.body.appendChild(wrap);
+
+  const fire=(type,code)=>window.dispatchEvent(new KeyboardEvent(type,{code:code,bubbles:true}));
+  wrap.querySelectorAll('.tc').forEach(btn=>{
+    const code=btn.dataset.code, tap=btn.dataset.tap;
+    let down=false;
+    const press=e=>{ e.preventDefault(); if(down) return; down=true; btn.classList.add('on'); fire('keydown',code);
+      if(tap){ setTimeout(()=>{ fire('keyup',code); down=false; btn.classList.remove('on'); },70); } };
+    const release=e=>{ if(tap||!down) return; down=false; btn.classList.remove('on'); fire('keyup',code); };
+    btn.addEventListener('pointerdown',press);
+    btn.addEventListener('pointerup',release);
+    btn.addEventListener('pointercancel',release);
+    btn.addEventListener('pointerleave',release);
+    btn.addEventListener('contextmenu',e=>e.preventDefault());
+  });
+
+  const menuEl=document.getElementById('menu');
+  const sync=()=>{ wrap.style.display=(menuEl && getComputedStyle(menuEl).display==='none')?'block':'none'; };
+  if(menuEl) new MutationObserver(sync).observe(menuEl,{attributes:true,attributeFilter:['style']});
+  sync();
+})();
 </script>
 </body>
 </html>
