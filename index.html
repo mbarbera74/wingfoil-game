@@ -91,8 +91,22 @@
   #warn{position:fixed;top:96px;left:50%;transform:translateX(-50%);z-index:7;display:none;
     background:linear-gradient(90deg,#b53b2f,#e0563f);color:#fff;font-weight:800;letter-spacing:.4px;
     padding:9px 18px;border-radius:12px;font-size:14px;box-shadow:0 6px 22px rgba(220,80,60,.4)}
+  #mpBoard{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:6;
+    background:rgba(8,18,28,.62);border:1px solid rgba(120,200,240,.25);border-radius:12px;
+    padding:7px 12px;min-width:170px;backdrop-filter:blur(6px);font-size:13px;pointer-events:none}
+  #mpBoard .mpTitle{font-weight:800;color:var(--accent2);font-size:12px;margin-bottom:4px;text-align:center;letter-spacing:.3px}
+  #mpBoard .mpRow{display:flex;justify-content:space-between;gap:14px;padding:1px 0;color:var(--text)}
+  #mpBoard .mpRow.me{color:var(--accent)}
+  #mpBoard .mpRow b{color:#ffd23f}
+  .mpLobby{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .mpLobby input{background:#0c1722;border:1px solid #21384a;color:var(--text);border-radius:9px;
+    padding:8px 10px;font-size:13px;font-weight:700;outline:none}
+  .mpLobby input:focus{border-color:var(--accent2)}
+  .mpbtn{background:linear-gradient(90deg,#1c6fb0,#26a0c2);color:#fff;border:none;border-radius:9px;
+    padding:8px 14px;font-weight:800;font-size:13px;cursor:pointer;letter-spacing:.2px}
+  .mpbtn:hover{filter:brightness(1.1)} .mpbtn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.4)}
+  .mpor{color:var(--muted);font-size:12px}
 </style>
-</head>
 <body>
 <div id="app"></div>
 
@@ -132,6 +146,7 @@
   </div>
 </div>
 <div id="trickPop"></div>
+<div id="mpBoard" style="display:none"></div>
 <div id="raceHud">
   <div class="card">
     <div class="row"><span>Boa</span><b id="rcBuoy">1/3</b></div>
@@ -211,6 +226,19 @@
         <h3>Setup check</h3>
         <div class="advice" id="setupAdvice" style="min-height:60px"></div>
       </div>
+
+      <div class="field" id="mpField" style="grid-column:1/-1">
+        <h3>🌐 Multiplayer online</h3>
+        <div class="mpLobby">
+          <input id="mpName" type="text" maxlength="12" placeholder="Il tuo nome" value="Rider">
+          <button id="mpHost" class="mpbtn">Crea stanza</button>
+          <span class="mpor">oppure</span>
+          <input id="mpCode" type="text" maxlength="5" placeholder="CODICE" style="text-transform:uppercase;width:90px">
+          <button id="mpJoin" class="mpbtn">Entra</button>
+          <button id="mpLeave" class="mpbtn" style="display:none;background:#7a2233">Esci</button>
+        </div>
+        <div class="advice" id="mpStatus" style="margin-top:8px">Crea una stanza e condividi il codice con gli amici, oppure entra con un codice. Poi premi <b>IN ACQUA</b>: vi vedrete in tempo reale.</div>
+      </div>
     </div>
 
     <button id="play">🏄 IN ACQUA</button>
@@ -232,6 +260,7 @@
   </div>
 </div>
 
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script type="importmap">
 { "imports": { "three": "https://unpkg.com/three@0.161.0/build/three.module.js" } }
 </script>
@@ -799,29 +828,28 @@ function buildWingSail(size){
   return g;
 }
 
+// Build a complete athlete (board + foil + rider + handheld wing) as a self-contained
+// group. Returns the parts so it can be reused both for the LOCAL player and for remote
+// "ghost" players in multiplayer — without touching any module globals.
+function buildAthlete(sailSize, mastCm){
+  const root=new THREE.Group();
+  const deck=buildBoard(); root.add(deck);
+  const mastH=mastCm/100*1.05;
+  root.add(buildFoil(mastH));
+  const rdr=new THREE.Group(); rdr.position.y=-0.02; rdr.rotation.y=Math.PI/2; root.add(rdr);
+  const bp=buildRider(); rdr.add(bp);
+  const rg=new THREE.Group(); rdr.add(rg);
+  rg.position.set(0,1.28,0.46);
+  rg.rotation.order='YXZ';
+  rg.rotation.set(-0.16,0,0.06);
+  const wing=buildWingSail(sailSize); rg.add(wing);
+  return {root, rider:rdr, bodyParts:bp, rig:rg, wingMesh:wing};
+}
+
 function buildRig(){
-  board=new THREE.Group(); scene.add(board);
-
-  // Foilboard (nose along +Z = direction of travel)
-  const deck=buildBoard(); board.add(deck);
-
-  // Foil assembly under the board
-  const mastH=cfg.mast/100*1.05;
-  board.add(buildFoil(mastH));
-
-  // Rider stands SIDEWAYS to travel: rotate +90° so chest faces the wind (+X world),
-  // front foot toward the nose. Slightly sunk so feet meet the deck.
-  rider=new THREE.Group(); rider.position.y=-0.02; rider.rotation.y=Math.PI/2; board.add(rider);
-  bodyParts=buildRider(); rider.add(bodyParts);
-
-  // Handheld wing (built in X-Y plane). Attach to the rotated rider so it sits on the
-  // windward side: forward of the chest at boom/hand height, canted with front tip low.
-  rig=new THREE.Group(); rider.add(rig);
-  rig.position.set(0,1.28,0.46);                 // hand height, out to windward (+Z local)
-  rig.rotation.order='YXZ';
-  rig.rotation.set(-0.16,0,0.06);                // slight rake; front "punta" stays ~horizontal
-  const wing=buildWingSail(cfg.sail);
-  rig.add(wing); wingMesh=wing;
+  const A=buildAthlete(cfg.sail, cfg.mast);
+  board=A.root; scene.add(board);
+  rider=A.rider; bodyParts=A.bodyParts; rig=A.rig; wingMesh=A.wingMesh;
 }
 
 // ---------- Game state ----------
@@ -1206,6 +1234,12 @@ const RACE = {
 // ---------- Start / stop ----------
 $('#play').onclick=()=>{ start(); };
 backBtn.onclick=()=>{ stop(); };
+
+// ---------- Multiplayer lobby wiring ----------
+$('#mpHost').onclick=()=>{ NET.host($('#mpName').value); };
+$('#mpJoin').onclick=()=>{ NET.join($('#mpCode').value, $('#mpName').value); };
+$('#mpLeave').onclick=()=>{ NET.leave(); };
+$('#mpCode').addEventListener('input',e=>{ e.target.value=e.target.value.toUpperCase(); });
 function start(){
   AUD.init(); AUD.resume(); AUD.startMusic();
   deriveGear(); buildWorld(); S.reset();
@@ -1221,6 +1255,198 @@ function start(){
 function stop(){ playing=false; AUD.silence(); menu.style.display='flex'; hud.style.display='none';
   scoreWrap.style.display='none'; backBtn.style.display='none'; raceHud.style.display='none'; rcBig.style.display='none';
   $('#windRose').style.display='none'; $('#warn').style.display='none'; }
+
+/* =========================================================================
+   MULTIPLAYER — online via WebRTC (PeerJS public broker, no backend)
+   Star topology: the host creates a room (code), friends join with the code.
+   Each client streams its state to the host; the host merges and re-broadcasts
+   a snapshot to everyone. Remote players are rendered as full "ghost" athletes.
+   ========================================================================= */
+const MP_COLORS=['#ff7043','#ffd23f','#7c4dff','#26c281','#ff4d97','#4fc1e9','#b0bec5','#ff9e40'];
+function computeArc(man){ if(man>0){ const p=1-man/0.85; return Math.sin(THREE.MathUtils.clamp(p,0,1)*Math.PI);} return 0; }
+function roomCode(){ const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<5;i++) s+=a[Math.floor(Math.random()*a.length)]; return s; }
+
+function makeTag(text,color){
+  const c=document.createElement('canvas'); c.width=256; c.height=64; const x=c.getContext('2d');
+  x.fillStyle='rgba(8,16,24,0.55)'; const r=14; x.beginPath();
+  x.moveTo(8+r,8); x.arcTo(248,8,248,56,r); x.arcTo(248,56,8,56,r); x.arcTo(8,56,8,8,r); x.arcTo(8,8,248,8,r); x.closePath(); x.fill();
+  x.fillStyle=color; x.font='bold 34px Segoe UI, sans-serif'; x.textAlign='center'; x.textBaseline='middle';
+  x.fillText((text||'Rider').slice(0,12),128,33);
+  const tex=new THREE.CanvasTexture(c); tex.anisotropy=4;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
+  sp.scale.set(2.0,0.5,1); sp.position.y=2.35; sp.renderOrder=999; return sp;
+}
+
+function buildGhost(st){
+  const A=buildAthlete(5,85);
+  A.root.position.set(st.x,st.y,st.z);
+  const tag=makeTag(st.n,st.c||'#9fe'); A.root.add(tag);
+  scene.add(A.root);
+  return { parts:A, tag, disp:Object.assign({},st), tgt:Object.assign({},st) };
+}
+
+function poseGhost(G,dt){
+  const k=THREE.MathUtils.clamp(dt*12,0,1), lerp=THREE.MathUtils.lerp, clamp=THREE.MathUtils.clamp;
+  const d=G.disp, t=G.tgt;
+  const ang=(a,b)=>{ let q=b-a; while(q>Math.PI)q-=2*Math.PI; while(q<-Math.PI)q+=2*Math.PI; return a+q*k; };
+  d.x=lerp(d.x,t.x,k); d.y=lerp(d.y,t.y,k); d.z=lerp(d.z,t.z,k);
+  d.p=lerp(d.p,t.p,k); d.w=lerp(d.w,t.w,k); d.f=lerp(d.f,t.f,k);
+  d.l=lerp(d.l,t.l,k); d.a=lerp(d.a,t.a,k); d.b=lerp(d.b||0,t.b||0,k);
+  d.h=ang(d.h,t.h); d.r=ang(d.r,t.r); d.t=t.t; d.s=t.s;
+  const p=G.parts, bp=p.bodyParts&&p.bodyParts.userData;
+  p.root.position.set(d.x,d.y,d.z);
+  p.root.rotation.set(0,0,0); p.root.rotation.y=d.h; p.root.rotateX(d.p);
+  p.rider.rotation.y=d.r;
+  if(bp){
+    bp.legsG.rotation.y=Math.PI/2-d.r;
+    const f=d.f, fy=0.12+Math.sin(f*Math.PI)*0.06;
+    const footLp=new THREE.Vector3(lerp(-0.28,0.30,f),fy,lerp(-0.09,0,f));
+    const footRp=new THREE.Vector3(lerp(0.30,-0.28,f),fy,lerp(0,0.09,f));
+    bp.footR.position.copy(footRp); bp.footL.position.copy(footLp);
+    const A_FL=-Math.PI/2+0.6, A_FR=-Math.PI/2-0.6, A_B=-0.15;
+    bp.footL.rotation.y=lerp(A_FL,A_B,f); bp.footR.rotation.y=lerp(A_B,A_FR,f);
+    const DOWN=new THREE.Vector3(0,-1,0);
+    const aim=(limb,hip,foot)=>{ limb.position.copy(hip); const dd=new THREE.Vector3(foot.x,foot.y+0.05,foot.z).sub(hip); const L=dd.length(); limb.scale.set(1,Math.max(0.45,L/bp.LEGLEN),1); limb.quaternion.setFromUnitVectors(DOWN,dd.normalize()); };
+    aim(bp.limbR,new THREE.Vector3(0,0.86,0.075),footRp); aim(bp.limbL,new THREE.Vector3(0,0.86,-0.075),footLp);
+    bp.hipsG.rotation.y=lerp(0.30,0.50,d.w); bp.torsoG.rotation.y=lerp(0.42,0.22,d.w); bp.headG.rotation.y=lerp(0.6,-0.3,d.w);
+    const armLift=d.a*1.15, reach=d.l, rearIsL=Math.sin(d.r)<0;
+    const rearArm=rearIsL?bp.armL:bp.armR, frontArm=rearIsL?bp.armR:bp.armL;
+    const rearSx=rearIsL?-0.16:0.16, frontSx=rearIsL?0.16:-0.16;
+    const gF=p.wingMesh&&p.wingMesh.getObjectByName('gripFront'), gB=p.wingMesh&&p.wingMesh.getObjectByName('gripBack');
+    const FWD=new THREE.Vector3(0,0,1);
+    const aimArm=(a,sx,tgt)=>{ const sh=new THREE.Vector3(sx,1.34,0.02); const dd=new THREE.Vector3().subVectors(tgt,sh); const L=dd.length(); a.position.copy(sh); a.scale.set(1,1,clamp(L/0.52,0.55,1.75)); a.quaternion.setFromUnitVectors(FWD,dd.normalize()); };
+    if(reach<0.12&&gF&&gB){
+      p.root.updateMatrixWorld(true);
+      const tF=p.rider.worldToLocal(gF.getWorldPosition(new THREE.Vector3()));
+      const tB=p.rider.worldToLocal(gB.getWorldPosition(new THREE.Vector3()));
+      aimArm(frontArm,frontSx,tF); aimArm(rearArm,rearSx,tB);
+    } else {
+      frontArm.scale.set(1,1,1); rearArm.scale.set(1,1,1);
+      frontArm.quaternion.identity(); rearArm.quaternion.identity();
+      frontArm.position.set(frontSx,1.34,0.02); rearArm.position.set(rearSx,1.34,0.02);
+      bp.armR.rotation.set(-armLift,0,0); bp.armL.rotation.set(-armLift,0,0);
+      rearArm.rotation.x=-armLift+reach*1.0; rearArm.rotation.z=(rearIsL?-1:1)*reach*0.28;
+      frontArm.rotation.x=-armLift+reach*0.18; frontArm.rotation.z=(rearIsL?1:-1)*reach*0.42;
+    }
+  }
+  const rg=p.rig, mY=d.a*0.85, mPitch=-d.a*1.25;
+  rg.position.set(0,1.28-d.l*0.30+mY,0.46-d.l*0.20);
+  rg.rotation.set(-0.16-d.l*1.1+mPitch,0,0.06);
+  let mir=Math.sin(d.r); if(Math.abs(mir)<0.06) mir=(mir<0?-0.06:0.06);
+  if(p.wingMesh) p.wingMesh.scale.x=mir;
+}
+
+function netLocalState(){
+  const lw=waveH(S.pos.x,S.pos.z);
+  const ride=Math.max(S.waterY+0.34, lw+0.30)+S.height-(S.down?0.6:0);
+  const pitch=-Math.min(0.3,S.vel*0.02)+(S.airborne?Math.sin(S.air*3)*0.05:0)+THREE.MathUtils.clamp(S.waveSlope*0.4,-0.45,0.45);
+  return { i:NET.id, n:NET.name, c:NET.color,
+    x:+S.pos.x.toFixed(3), y:+ride.toFixed(3), z:+S.pos.z.toFixed(3),
+    h:+S.heading.toFixed(3), p:+(pitch+S.roll).toFixed(3), r:+S.riderYaw.toFixed(3),
+    t:S.tack, w:+S.switchAnim.toFixed(2), f:+S.feetAnim.toFixed(2), l:+S.sailLow.toFixed(2),
+    b:+S.backwind.toFixed(2), a:+computeArc(S.maneuver).toFixed(2),
+    A:S.airborne?1:0, s:Math.round(S.score), _t:performance.now() };
+}
+
+const NET = {
+  peer:null, id:null, room:null, isHost:false, active:false,
+  name:'Rider', color:MP_COLORS[5],
+  conns:[], hostConn:null, players:{}, ghosts:{}, timer:null, _board:0,
+
+  host(name){
+    this.name=(name||'Host').trim()||'Host'; this.color=MP_COLORS[Math.floor(Math.random()*MP_COLORS.length)];
+    this.isHost=true; const code=roomCode(); this.id='wf-'+code.toLowerCase(); this.room=code;
+    setStatus('Creazione stanza…');
+    this.peer=new Peer(this.id,{debug:0});
+    this.peer.on('open',()=>{ this.active=true; this._start(); setStatus('Stanza <b>'+code+'</b> creata. Condividila con gli amici.'); });
+    this.peer.on('connection',c=>this._wireConn(c));
+    this.peer.on('error',e=>{ if(e&&e.type==='unavailable-id'){ this.peer.destroy(); this.host(this.name); } else setStatus('Errore rete: '+(e&&e.type||e),true); });
+  },
+
+  join(code,name){
+    code=(code||'').trim().toUpperCase(); if(code.length<4){ setStatus('Inserisci un codice stanza valido.',true); return; }
+    this.name=(name||'Rider').trim()||'Rider'; this.color=MP_COLORS[Math.floor(Math.random()*MP_COLORS.length)];
+    this.isHost=false; this.room=code; this.id='wf-c-'+roomCode().toLowerCase();
+    setStatus('Connessione alla stanza '+code+'…');
+    this.peer=new Peer(this.id,{debug:0});
+    this.peer.on('open',()=>{
+      const hc=this.peer.connect('wf-'+code.toLowerCase(),{serialization:'json',reliable:false,metadata:{n:this.name}});
+      this.hostConn=hc;
+      hc.on('open',()=>{ this.active=true; this._start(); setStatus('Connesso alla stanza <b>'+code+'</b>. In acqua!'); });
+      hc.on('data',d=>{ if(d&&d.S) this._applySnapshot(d.p); });
+      hc.on('close',()=>{ setStatus('Disconnesso dalla stanza.',true); this.leave(true); });
+      hc.on('error',()=>setStatus('Connessione fallita: stanza inesistente?',true));
+    });
+    this.peer.on('error',e=>{ const ty=e&&e.type; if(ty==='peer-unavailable') setStatus('Stanza '+code+' non trovata.',true); else setStatus('Errore rete: '+(ty||e),true); });
+  },
+
+  _wireConn(c){
+    c.on('open',()=>{ this.conns.push(c); });
+    c.on('data',d=>{ if(d&&d.i){ d._t=performance.now(); this.players[d.i]=d; } });
+    c.on('close',()=>{ this.conns=this.conns.filter(x=>x!==c); });
+    c.on('error',()=>{ this.conns=this.conns.filter(x=>x!==c); });
+  },
+
+  _start(){ if(this.timer) clearInterval(this.timer); this.timer=setInterval(()=>this.tick(),80); },
+
+  tick(){
+    if(!this.active) return;
+    const me=netLocalState();
+    if(this.isHost){
+      this.players[this.id]=me;
+      const now=performance.now();
+      for(const id in this.players){ if(id!==this.id && now-(this.players[id]._t||0)>4000) delete this.players[id]; }
+      const list=Object.values(this.players);
+      const snap={S:1,p:list};
+      this.conns.forEach(c=>{ if(c.open){ try{ c.send(snap); }catch(e){} } });
+      this._applySnapshot(list);
+    } else if(this.hostConn && this.hostConn.open){
+      try{ this.hostConn.send(me); }catch(e){}
+    }
+  },
+
+  _applySnapshot(list){
+    if(!list) return; const seen={};
+    list.forEach(st=>{ if(!st||st.i===this.id) return; seen[st.i]=1;
+      let g=this.ghosts[st.i];
+      if(!g){ g=buildGhost(st); this.ghosts[st.i]=g; }
+      else { st._t=performance.now(); Object.assign(g.tgt,st); }
+    });
+    for(const id in this.ghosts){ if(!seen[id]){ scene.remove(this.ghosts[id].parts.root); delete this.ghosts[id]; } }
+  },
+
+  renderGhosts(dt){
+    if(!this.active) return;
+    for(const id in this.ghosts) poseGhost(this.ghosts[id],dt);
+    this._board+=dt; if(this._board>0.3){ this._board=0; this.drawBoard(); }
+  },
+
+  drawBoard(){
+    const el=$('#mpBoard'); if(!el) return;
+    const rows=[{n:this.name,s:Math.round(S.score),me:true}];
+    for(const id in this.ghosts){ const g=this.ghosts[id]; rows.push({n:g.tgt.n||'Rider',s:g.tgt.s||0,c:g.tgt.c}); }
+    rows.sort((a,b)=>b.s-a.s);
+    el.innerHTML='<div class="mpTitle">🌐 '+(this.room||'')+' · '+rows.length+' rider</div>'+
+      rows.map((r,i)=>'<div class="mpRow'+(r.me?' me':'')+'"><span>'+(i+1)+'. '+(r.n||'Rider')+(r.me?' (tu)':'')+'</span><b>'+r.s+'</b></div>').join('');
+    el.style.display='block';
+  },
+
+  leave(silent){
+    if(this.timer){ clearInterval(this.timer); this.timer=null; }
+    try{ this.conns.forEach(c=>c.close()); }catch(e){}
+    try{ if(this.hostConn) this.hostConn.close(); }catch(e){}
+    try{ if(this.peer) this.peer.destroy(); }catch(e){}
+    for(const id in this.ghosts){ scene.remove(this.ghosts[id].parts.root); }
+    this.ghosts={}; this.players={}; this.conns=[]; this.hostConn=null; this.peer=null;
+    this.active=false; this.isHost=false; this.room=null;
+    const el=$('#mpBoard'); if(el) el.style.display='none';
+    if(!silent) setStatus('Uscito dalla stanza.');
+    $('#mpHost').disabled=false; $('#mpJoin').disabled=false; $('#mpLeave').style.display='none';
+  }
+};
+function setStatus(html,err){ const el=$('#mpStatus'); if(!el) return; el.innerHTML=html; el.style.color=err?'#ff6b6b':'var(--accent2)';
+  if(NET.active){ $('#mpHost').disabled=true; $('#mpJoin').disabled=true; $('#mpLeave').style.display='inline-block'; } }
+
 
 // ---------- Resize ----------
 addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
@@ -1271,6 +1497,7 @@ function loop(){
   const dt=Math.min(clock.getDelta(),0.05);
   if(playing) step(dt);
   if(playing) AUD.update();
+  if(NET.active) NET.renderGhosts(dt);
   renderer.render(scene,camera);
 }
 loop();
