@@ -243,6 +243,14 @@
 
     <button id="play">🏄 IN ACQUA</button>
 
+    <div style="margin-top:10px;text-align:center">
+      <label class="mpbtn" style="cursor:pointer;display:inline-block;background:linear-gradient(90deg,#5a3fb0,#8a4dd8)">🎵 Carica la tua musica
+        <input id="musicFile" type="file" accept="audio/*" style="display:none">
+      </label>
+      <span id="musicName" style="font-size:12px;color:var(--muted);margin-left:8px"></span>
+      <div class="advice" style="margin-top:6px">Online il brano non è incluso (copyright): carica la <b>tua copia legale</b> (es. <i>War — Joe Satriani</i>) e parte in loop. <kbd>M</kbd> per mutare.</div>
+    </div>
+
     <div class="keys">
       <b style="color:var(--text)">Comandi</b><br>
       <kbd>W</kbd>/<kbd>↑</kbd> pump (accelera) &nbsp; <kbd>A</kbd><kbd>D</kbd>/<kbd>←</kbd><kbd>→</kbd> vira &nbsp;
@@ -918,7 +926,7 @@ let playing=false, jumpQueued=false, popCharge=0;
 const AUD = {
   ctx:null, ready:false, muted:false, master:null, noiseBuf:null,
   windF:null, windG:null, waterF:null, waterG:null, foilOsc:null, foilG:null,
-  musicEl:null, musicG:null, musicOk:false,
+  musicEl:null, musicG:null, musicOk:false, customURL:null,
   init(){
     if(this.ready) return;
     const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return;
@@ -948,7 +956,9 @@ const AUD = {
     try{
       const el = this.musicEl = new Audio();
       el.loop = true; el.crossOrigin = 'anonymous'; el.preload = 'auto';
-      el.src = encodeURI('War [Joe Satriani].mp3');
+      // On the public site the copyrighted track is NOT shipped (copyright). Players load
+      // their own legal copy via the menu → that object URL takes precedence here.
+      el.src = this.customURL ? this.customURL : encodeURI('War [Joe Satriani].mp3');
       const src = ctx.createMediaElementSource(el);
       src.connect(mg);
       el.addEventListener('error', ()=>{ this.musicOk=false; });
@@ -962,6 +972,18 @@ const AUD = {
     const p = this.musicEl.play();
     if(p && p.catch) p.catch(()=>{ this.musicOk=false; });
     this.musicG.gain.setTargetAtTime(this.muted?0.0:0.32, this.ctx.currentTime, 1.2);
+  },
+  // Let the player point the background music at THEIR OWN local audio file (their legal
+  // copy). Works on the public site without redistributing any copyrighted track.
+  setMusicFile(file){
+    if(!file) return;
+    try{ if(this.customURL) URL.revokeObjectURL(this.customURL); }catch(e){}
+    this.customURL = URL.createObjectURL(file);
+    if(this.musicEl){
+      try{ this.musicEl.src=this.customURL; this.musicOk=true; }catch(e){}
+      if(this.ready){ const p=this.musicEl.play(); if(p&&p.catch) p.catch(()=>{});
+        this.musicG.gain.setTargetAtTime(this.muted?0.0:0.32, this.ctx.currentTime, 0.6); }
+    }
   },
   toggleMute(){ this.muted=!this.muted; if(this.ready) this.master.gain.setTargetAtTime(this.muted?0.0001:0.9, this.ctx.currentTime, 0.1); return this.muted; },
   silence(){ if(!this.ready) return; const t=this.ctx.currentTime; this.windG.gain.setTargetAtTime(0,t,0.2); this.waterG.gain.setTargetAtTime(0,t,0.2); this.foilG.gain.setTargetAtTime(0,t,0.2); if(this.musicG){ this.musicG.gain.setTargetAtTime(0,t,0.4); } if(this.musicEl){ try{ this.musicEl.pause(); }catch(e){} } },
@@ -1240,6 +1262,12 @@ $('#mpHost').onclick=()=>{ NET.host($('#mpName').value); };
 $('#mpJoin').onclick=()=>{ NET.join($('#mpCode').value, $('#mpName').value); };
 $('#mpLeave').onclick=()=>{ NET.leave(); };
 $('#mpCode').addEventListener('input',e=>{ e.target.value=e.target.value.toUpperCase(); });
+
+// ---------- Custom background music (player's own local file) ----------
+$('#musicFile').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0];
+  if(f){ AUD.init(); AUD.resume(); AUD.setMusicFile(f); $('#musicName').textContent='♪ '+f.name; }
+});
 function start(){
   AUD.init(); AUD.resume(); AUD.startMusic();
   deriveGear(); buildWorld(); S.reset();
@@ -1273,16 +1301,34 @@ function makeTag(text,color){
   x.fillStyle=color; x.font='bold 34px Segoe UI, sans-serif'; x.textAlign='center'; x.textBaseline='middle';
   x.fillText((text||'Rider').slice(0,12),128,33);
   const tex=new THREE.CanvasTexture(c); tex.anisotropy=4;
-  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
-  sp.scale.set(2.0,0.5,1); sp.position.y=2.35; sp.renderOrder=999; return sp;
+  // sizeAttenuation:false → the name stays a constant, readable size no matter how far the
+  // remote rider is, so you can always spot your friends across the spot.
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true,sizeAttenuation:false}));
+  sp.scale.set(0.13,0.0325,1); sp.renderOrder=999; return sp;
+}
+
+// A tall, color-coded beacon + floating name that ALWAYS stays vertical and visible above a
+// remote rider — parented to the scene (not the tilting board) so flips don't spin it.
+function buildMarker(st){
+  const m=new THREE.Group();
+  const col=new THREE.Color(st.c||'#9fe');
+  const beacon=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,7,8),
+    new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.42,depthWrite:false}));
+  beacon.position.y=3.7; m.add(beacon);
+  const glow=new THREE.Mesh(new THREE.SphereGeometry(0.16,12,10),
+    new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.9,depthWrite:false}));
+  glow.position.y=7.2; m.add(glow);
+  const tag=makeTag(st.n,st.c||'#9fe'); tag.position.y=7.7; m.add(tag);
+  scene.add(m);
+  return m;
 }
 
 function buildGhost(st){
   const A=buildAthlete(5,85);
   A.root.position.set(st.x,st.y,st.z);
-  const tag=makeTag(st.n,st.c||'#9fe'); A.root.add(tag);
   scene.add(A.root);
-  return { parts:A, tag, disp:Object.assign({},st), tgt:Object.assign({},st) };
+  const marker=buildMarker(st);
+  return { parts:A, marker, disp:Object.assign({},st), tgt:Object.assign({},st) };
 }
 
 function poseGhost(G,dt){
@@ -1334,6 +1380,8 @@ function poseGhost(G,dt){
   rg.rotation.set(-0.16-d.l*1.1+mPitch,0,0.06);
   let mir=Math.sin(d.r); if(Math.abs(mir)<0.06) mir=(mir<0?-0.06:0.06);
   if(p.wingMesh) p.wingMesh.scale.x=mir;
+  // keep the beacon+name upright above the rider, never tilting with board pitch/flips
+  if(G.marker) G.marker.position.set(d.x, d.y+0.2, d.z);
 }
 
 function netLocalState(){
@@ -1412,12 +1460,16 @@ const NET = {
       if(!g){ g=buildGhost(st); this.ghosts[st.i]=g; }
       else { st._t=performance.now(); Object.assign(g.tgt,st); }
     });
-    for(const id in this.ghosts){ if(!seen[id]){ scene.remove(this.ghosts[id].parts.root); delete this.ghosts[id]; } }
+    for(const id in this.ghosts){ if(!seen[id]){ scene.remove(this.ghosts[id].parts.root); if(this.ghosts[id].marker) scene.remove(this.ghosts[id].marker); delete this.ghosts[id]; } }
   },
 
   renderGhosts(dt){
     if(!this.active) return;
-    for(const id in this.ghosts) poseGhost(this.ghosts[id],dt);
+    for(const id in this.ghosts){ const g=this.ghosts[id];
+      if(g.parts&&g.parts.root&&!g.parts.root.parent) scene.add(g.parts.root);
+      if(g.marker&&!g.marker.parent) scene.add(g.marker);
+      poseGhost(g,dt);
+    }
     this._board+=dt; if(this._board>0.3){ this._board=0; this.drawBoard(); }
   },
 
@@ -1436,7 +1488,7 @@ const NET = {
     try{ this.conns.forEach(c=>c.close()); }catch(e){}
     try{ if(this.hostConn) this.hostConn.close(); }catch(e){}
     try{ if(this.peer) this.peer.destroy(); }catch(e){}
-    for(const id in this.ghosts){ scene.remove(this.ghosts[id].parts.root); }
+    for(const id in this.ghosts){ scene.remove(this.ghosts[id].parts.root); if(this.ghosts[id].marker) scene.remove(this.ghosts[id].marker); }
     this.ghosts={}; this.players={}; this.conns=[]; this.hostConn=null; this.peer=null;
     this.active=false; this.isHost=false; this.room=null;
     const el=$('#mpBoard'); if(el) el.style.display='none';
