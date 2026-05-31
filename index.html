@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WingFoil 3D — Freestyle Prototype</title>
+<style>
+  :root{
+    --bg:#0a1626; --panel:rgba(10,22,38,.82); --accent:#27d3c4; --accent2:#ffb020;
+    --text:#eaf2ff; --muted:#8aa0bd; --line:rgba(120,160,210,.22);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);
+    font-family:"Segoe UI",system-ui,Arial,sans-serif;color:var(--text);user-select:none}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;top:14px;left:14px;z-index:5;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+  .card{background:var(--panel);backdrop-filter:blur(8px);border:1px solid var(--line);
+    border-radius:14px;padding:10px 14px;min-width:150px}
+  .row{display:flex;justify-content:space-between;gap:18px;font-size:13px;line-height:1.7}
+  .row b{color:var(--accent);font-variant-numeric:tabular-nums}
+  .big{font-size:30px;font-weight:700;letter-spacing:.5px;font-variant-numeric:tabular-nums}
+  .unit{font-size:13px;color:var(--muted);font-weight:400;margin-left:4px}
+  #flyTag{display:inline-block;margin-top:4px;padding:2px 10px;border-radius:20px;font-size:12px;
+    font-weight:700;background:#21405a;color:var(--muted)}
+  #flyTag.on{background:var(--accent);color:#04202a}
+  #trickPop{position:fixed;top:34%;left:50%;transform:transl(-50%,-50%);z-index:6;
+    font-size:46px;font-weight:800;color:var(--accent2);text-shadow:0 4px 22px rgba(0,0,0,.6);
+    opacity:0;transition:opacity .15s;pointer-events:none;text-align:center;white-space:nowrap;
+    transform:translateX(-50%)}
+  #scoreWrap{position:fixed;top:14px;right:14px;z-index:5;text-align:right;pointer-events:none}
+  #scoreWrap .big{color:var(--accent2)}
+
+  /* ---------- Menu ---------- */
+  #menu{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(120% 120% at 50% 0%,#143456 0%,#081120 60%,#04080f 100%)}
+  .panel{width:min(880px,94vw);max-height:94vh;overflow:auto;background:var(--panel);
+    border:1px solid var(--line);border-radius:22px;padding:26px 30px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+  h1{margin:0 0 2px;font-size:30px;letter-spacing:.5px}
+  h1 span{color:var(--accent)}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:20px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:680px){.grid{grid-template-columns:1fr}}
+  .field{background:rgba(20,40,66,.5);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .field h3{margin:0 0 10px;font-size:14px;color:var(--accent);text-transform:uppercase;letter-spacing:1px}
+  .opts{display:flex;flex-wrap:wrap;gap:8px}
+  .opt{flex:1;min-width:64px;text-align:center;padding:9px 6px;border-radius:10px;cursor:pointer;
+    background:#16304c;border:1px solid transparent;font-size:13px;transition:.12s}
+  .opt small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+  .opt:hover{background:#1d3e60}
+  .opt.sel{background:var(--accent);color:#04202a;border-color:#9ff3ec}
+  .opt.sel small{color:#063b3a}
+  input[type=range]{width:100%;accent-color:var(--accent);margin-top:6px}
+  .windval{font-size:24px;font-weight:700;color:var(--accent)}
+  .windval span{font-size:13px;color:var(--muted);font-weight:400}
+  .advice{margin-top:8px;font-size:12.5px;color:var(--muted);line-height:1.5;min-height:34px}
+  .advice.ok{color:#7ee0a8}.advice.warn{color:#ffcf66}.advice.bad{color:#ff8e8e}
+  #play{margin-top:22px;width:100%;padding:15px;font-size:17px;font-weight:700;border:none;
+    border-radius:14px;cursor:pointer;background:linear-gradient(90deg,var(--accent),#3ee6a8);color:#04202a}
+  #play:hover{filter:brightness(1.06)}
+  .keys{margin-top:16px;font-size:12.5px;color:var(--muted);line-height:1.8;border-top:1px solid var(--line);padding-top:12px}
+  .keys kbd{background:#16304c;border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:inherit;color:var(--text);font-size:12px}
+  #backBtn{position:fixed;bottom:14px;left:14px;z-index:5;background:var(--panel);border:1px solid var(--line);
+    color:var(--text);border-radius:12px;padding:9px 16px;font-size:13px;cursor:pointer;pointer-events:auto;display:none}
+  .roadmap{margin-top:14px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;line-height:1.6}
+  /* wind indicator */
+  #windRose{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:6;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 12px 6px;
+    text-align:center;backdrop-filter:blur(6px);display:none}
+  #windRose .lbl{font-size:10px;letter-spacing:2px;color:var(--muted)}
+  #windRose .dial{position:relative;width:62px;height:62px;margin:3px auto 1px;border-radius:50%;
+    border:2px solid var(--line);background:radial-gradient(circle at 50% 40%,#13344f,#0c2233)}
+  #windRose .nose{position:absolute;top:3px;left:50%;transform:translateX(-50%);font-size:11px;color:#7fa8c9}
+  #windArrow{position:absolute;top:50%;left:50%;width:0;height:0;font-size:26px;line-height:0;
+    transform:translate(-50%,-50%) rotate(0deg);color:var(--accent2);transition:transform .12s linear}
+  #tackLbl{font-size:11px;font-weight:700;margin-top:1px}
+  #warn{position:fixed;top:96px;left:50%;transform:translateX(-50%);z-index:7;display:none;
+    background:linear-gradient(90deg,#b53b2f,#e0563f);color:#fff;font-weight:800;letter-spacing:.4px;
+    padding:9px 18px;border-radius:12px;font-size:14px;box-shadow:0 6px 22px rgba(220,80,60,.4)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<!-- HUD -->
+<div id="hud" style="display:none">
+  <div class="card">
+    <div class="big" id="speedV">0<span class="unit">kn</span></div>
+    <span id="flyTag">SULL'ACQUA</span>
+  </div>
+  <div class="card">
+    <div class="row"><span>Vento</span><b id="windV">0 kn</b></div>
+    <div class="row"><span>Andatura</span><b id="pointV">—</b></div>
+    <div class="row"><span>Onda</span><b id="surfV">—</b></div>
+    <div class="row"><span>Aria</span><b id="airV">0.0 s</b></div>
+  </div>
+</div>
+<div id="windRose">
+  <div class="lbl">VENTO</div>
+  <div class="dial"><div class="nose">▲</div><div id="windArrow">➤</div></div>
+  <div id="tackLbl">—</div>
+</div>
+<div id="warn">⚠ CONTROVENTO — premi F per girare la vela</div>
+<div id="scoreWrap" style="display:none">
+  <div class="card">
+    <div class="row" style="justify-content:flex-end"><span>SCORE</span></div>
+    <div class="big" id="scoreV">0</div>
+    <div class="row" style="justify-content:flex-end"><span>Combo</span><b id="comboV">x1</b></div>
+  </div>
+</div>
+<div id="trickPop"></div>
+<button id="backBtn">‹ Menu</button>
+
+<!-- Menu -->
+<div id="menu">
+  <div class="panel">
+    <h1>Wing<span>Foil</span> 3D <span style="font-size:14px;color:var(--accent2);vertical-align:super">prototype</span></h1>
+    <div class="sub">Scegli spot, vento e attrezzatura. La fisica del foil reagisce davvero alle tue scelte.</div>
+
+    <div class="grid">
+      <div class="field">
+        <h3>Spot</h3>
+        <div class="opts" id="spotOpts">
+          <div class="opt sel" data-spot="sardegna">Sardegna<small>flat / onda piccola</small></div>
+          <div class="opt" data-spot="grancanaria">Gran Canaria<small>vento forte, choppy</small></div>
+          <div class="opt" data-spot="hawaii">Hawaii<small>onde grandi</small></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <h3>Vento</h3>
+        <div class="windval"><span id="windLabel">18</span> <span>nodi</span></div>
+        <input type="range" id="windSlider" min="10" max="38" value="18">
+        <div class="advice" id="windAdvice"></div>
+      </div>
+
+      <div class="field">
+        <h3>Vela (m²)</h3>
+        <div class="opts" id="sailOpts">
+          <div class="opt" data-sail="3">3.0<small>storm</small></div>
+          <div class="opt" data-sail="4">4.0<small>forte</small></div>
+          <div class="opt sel" data-sail="5">5.0<small>medio</small></div>
+          <div class="opt" data-sail="6">6.0<small>light</small></div>
+          <div class="opt" data-sail="7">7.0<small>leggero</small></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <h3>Front wing (cm²)</h3>
+        <div class="opts" id="wingOpts">
+          <div class="opt" data-wing="1200">1200<small>speed</small></div>
+          <div class="opt sel" data-wing="1500">1500<small>freestyle</small></div>
+          <div class="opt" data-wing="1900">1900<small>early lift</small></div>
+          <div class="opt" data-wing="2400">2400<small>light wind</small></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <h3>Mast (cm)</h3>
+        <div class="opts" id="mastOpts">
+          <div class="opt" data-mast="75">75<small>basso/stabile</small></div>
+          <div class="opt sel" data-mast="85">85<small>versatile</small></div>
+          <div class="opt" data-mast="95">95<small>onda/alto</small></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <h3>Setup check</h3>
+        <div class="advice" id="setupAdvice" style="min-height:60px"></div>
+      </div>
+    </div>
+
+    <button id="play">🏄 IN ACQUA</button>
+
+    <div class="keys">
+      <b style="color:var(--text)">Comandi</b><br>
+      <kbd>W</kbd>/<kbd>↑</kbd> pump (accelera) &nbsp; <kbd>A</kbd><kbd>D</kbd>/<kbd>←</kbd><kbd>→</kbd> vira &nbsp;
+      <kbd>F</kbd> vira / stramba (gira la vela sopra la testa) &nbsp; <kbd>S</kbd> switch piedi (raddrizza) &nbsp; <kbd>↓</kbd> abbassa la vela (surf) &nbsp; <kbd>Spazio</kbd> pop / salto<br>
+      In aria: <kbd>A</kbd><kbd>D</kbd> spin (rotazione) &nbsp; <kbd>Q</kbd><kbd>E</kbd> roll/backflip &nbsp; <kbd>Shift</kbd> grab &nbsp;
+      <kbd>C</kbd> camera &nbsp; <kbd>R</kbd> reset &nbsp; <kbd>M</kbd> audio on/off<br>
+      <span style="color:var(--accent2)">In una virata/strambata (F) la <b>vela gira sopra la testa</b> e passa dall'altro lato: i piedi restano fermi, quindi ti ritrovi in <b>switch</b>. Premi <b>S</b> per <b>scambiare i piedi</b> (davanti↔dietro) e raddrizzarti. A tutta velocità (fino a 30 kn) i salti diventano più alti.</span>
+    </div>
+    <div class="roadmap">
+      <b style="color:var(--accent)">Roadmap full game</b> — questo è il prototipo del core gameplay (fisica foil, freestyle, gear).
+      Versione completa: libreria manovre reali (tack/jibe foil, 360, backloop, frontloop, e-slide), giudici AI freestyle,
+      gare race a boe, fisica onde per surf-foil, e <b>multiplayer online</b> (race + freestyle battle) con netcode autoritativo.
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.161.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+/* =========================================================================
+   WINGFOIL 3D — physics-lite prototype
+   ========================================================================= */
+
+// ---------- Config / spots ----------
+const SPOTS = {
+  sardegna:    { name:'Sardegna',     sky:0x9fd4ff, water:0x1aa6cc, deep:0x0e6e90, waveAmp:0.10, waveLen:9,  swellAmp:0.22, swellLen:11, swellDir:0.55, swellSpeed:0.65, sun:0xfff2d0, fog:0xbfe6f7 },
+  grancanaria: { name:'Gran Canaria', sky:0x7fb6e8, water:0x148fb8, deep:0x0a5874, waveAmp:0.18, waveLen:6,  swellAmp:0.62, swellLen:8,  swellDir:0.95, swellSpeed:0.80, sun:0xffe6b0, fog:0xaed5ec },
+  hawaii:      { name:'Hawaii',       sky:0x8fd0ef, water:0x12a6c2, deep:0x086a82, waveAmp:0.22, waveLen:14, swellAmp:1.15, swellLen:12, swellDir:0.40, swellSpeed:0.70, sun:0xfff6dc, fog:0xbce8ea },
+};
+
+const cfg = { spot:'sardegna', wind:18, sail:5, wing:1500, mast:85 };
+
+// ---------- DOM ----------
+const $ = s=>document.querySelector(s);
+const menu=$('#menu'), hud=$('#hud'), scoreWrap=$('#scoreWrap'), backBtn=$('#backBtn');
+const trickPop=$('#trickPop');
+
+function selOpts(container, attr, key){
+  container.querySelectorAll('.opt').forEach(o=>{
+    o.onclick=()=>{
+      container.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));
+      o.classList.add('sel');
+      cfg[key]=isNaN(+o.dataset[attr])?o.dataset[attr]:+o.dataset[attr];
+      updateAdvice();
+    };
+  });
+}
+selOpts($('#spotOpts'),'spot','spot');
+selOpts($('#sailOpts'),'sail','sail');
+selOpts($('#wingOpts'),'wing','wing');
+selOpts($('#mastOpts'),'mast','mast');
+
+const windSlider=$('#windSlider');
+windSlider.oninput=()=>{ cfg.wind=+windSlider.value; $('#windLabel').textContent=cfg.wind; updateAdvice(); };
+
+function updateAdvice(){
+  // recommended sail ~ powered window
+  const recSail = Math.max(3, Math.min(7, Math.round((28 - cfg.wind*0.55)*2)/2 + 1.5));
+  const a=$('#windAdvice');
+  if(cfg.wind<14){a.textContent='Vento leggero: serve vela grande e front wing ampia per planare.';a.className='advice warn';}
+  else if(cfg.wind>30){a.textContent='Vento forte/raffica: vela piccola, occhio al controllo in volo.';a.className='advice warn';}
+  else {a.textContent='Finestra ideale per freestyle: pop potenti e volo stabile.';a.className='advice ok';}
+
+  const power = cfg.sail * cfg.wind; // arbitrary power index
+  const s=$('#setupAdvice');
+  let txt='', cls='advice ';
+  if(power<70){txt='⚠️ Sotto-velato: fatica a partire. Aumenta vela o aspetta più vento.';cls+='bad';}
+  else if(power>200){txt='⚠️ Sovra-velato: tantissima potenza, difficile da gestire ma salti enormi.';cls+='warn';}
+  else {txt='✅ Bilanciato: potenza giusta per pumpare sul foil e caricare i pop.';cls+='ok';}
+  txt+= ` · Liftoff stimato ~${(13 - cfg.wing/220).toFixed(0)} kn · Mast ${cfg.mast}cm → ${cfg.mast>=95?'clearance alta per onde':cfg.mast<=75?'stabile, salti più bassi':'versatile'}.`;
+  s.textContent=txt; s.className=cls;
+}
+updateAdvice();
+
+// ---------- THREE setup ----------
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+$('#app').appendChild(renderer.domElement);
+
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,0.1,2000);
+
+let sun, hemi, water, waterGeo, foam, board, rig, rider, wingMesh, bodyParts;
+let spray, sprayData, sprayHead=0; const SPRAY_N=300;
+let streaks, streakData=null; const STREAK_N=240, STREAK_R=44;
+let spot=SPOTS.sardegna;
+const WATER_SEG=130, WATER_SIZE=600;
+
+function buildWorld(){
+  // clear
+  while(scene.children.length) scene.remove(scene.children[0]);
+  spot=SPOTS[cfg.spot];
+
+  scene.background=new THREE.Color(spot.sky);
+  scene.fog=new THREE.Fog(spot.fog, 80, 520);
+
+  hemi=new THREE.HemisphereLight(spot.sky, spot.deep, 0.65); scene.add(hemi);
+  sun=new THREE.DirectionalLight(spot.sun, 1.05);
+  sun.position.set(-60,80,40); sun.castShadow=true;
+  sun.shadow.mapSize.set(1024,1024);
+  sun.shadow.camera.near=1; sun.shadow.camera.far=300;
+  sun.shadow.camera.left=-40;sun.shadow.camera.right=40;sun.shadow.camera.top=40;sun.shadow.camera.bottom=-40;
+  scene.add(sun);
+
+  // Water
+  waterGeo=new THREE.PlaneGeometry(WATER_SIZE,WATER_SIZE,WATER_SEG,WATER_SEG);
+  waterGeo.rotateX(-Math.PI/2);
+  // per-vertex colour (deep troughs, base water, white breaking crests)
+  waterGeo.setAttribute('color',
+    new THREE.BufferAttribute(new Float32Array(waterGeo.attributes.position.count*3),3));
+  const waterMat=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:0.6,metalness:0.08,
+    emissive:new THREE.Color(spot.water).multiplyScalar(0.16), emissiveIntensity:1.0,
+    transparent:true,opacity:0.97});
+  water=new THREE.Mesh(waterGeo,waterMat); water.receiveShadow=true; scene.add(water);
+
+  // Distant sea ring (so horizon isn't an edge)
+  const ring=new THREE.Mesh(new THREE.RingGeometry(WATER_SIZE*0.49, 1400, 64),
+    new THREE.MeshBasicMaterial({color:spot.deep,side:THREE.DoubleSide,fog:true}));
+  ring.rotateX(-Math.PI/2); ring.position.y=-0.05; scene.add(ring);
+
+  // Sky dome gradient
+  const sky=new THREE.Mesh(new THREE.SphereGeometry(1500,32,16),
+    new THREE.ShaderMaterial({side:THREE.BackSide, uniforms:{
+      top:{value:new THREE.Color(spot.sky).multiplyScalar(1.05)},
+      bot:{value:new THREE.Color(spot.fog)}},
+      vertexShader:`varying float h; void main(){ h=normalize(position).y; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+      fragmentShader:`varying float h; uniform vec3 top; uniform vec3 bot; void main(){ float t=clamp(h*0.5+0.5,0.,1.); gl_FragColor=vec4(mix(bot,top,pow(t,0.8)),1.);}`}));
+  scene.add(sky);
+
+  // Land for the spot (a simple island/hills on the upwind side)
+  buildScenery();
+
+  // Board + rig + rider
+  buildRig();
+
+  // foam patch under board
+  foam=new THREE.Mesh(new THREE.CircleGeometry(0.28,24),
+    new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.28}));
+  foam.rotateX(-Math.PI/2); scene.add(foam);
+
+  // spray / wake particles (world-anchored so they rush past = sense of speed)
+  buildSpray();
+  buildStreaks();
+}
+
+// World-anchored foam flecks scattered on the surface around the rider. They sit STILL in
+// the world, so as you move they stream past the camera — the main cue for SPEED. Flecks
+// that fall behind are recycled ahead, keeping a constant field. Opacity scales with speed
+// (calm water when slow, streaking foam when fast).
+function buildStreaks(){
+  const g=new THREE.BufferGeometry();
+  const pos=new Float32Array(STREAK_N*3);
+  streakData=[];
+  const ox=S.pos? S.pos.x:0, oz=S.pos? S.pos.z:0;
+  for(let i=0;i<STREAK_N;i++){
+    const a=Math.random()*Math.PI*2, r=Math.sqrt(Math.random())*STREAK_R;
+    const x=ox+Math.cos(a)*r, z=oz+Math.sin(a)*r;
+    pos[i*3]=x; pos[i*3+1]=0.05; pos[i*3+2]=z; streakData.push({x,z});
+  }
+  g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const m=new THREE.PointsMaterial({color:0xeaf6ff,size:0.34,transparent:true,opacity:0.0,
+    sizeAttenuation:true,depthWrite:false});
+  streaks=new THREE.Points(g,m); streaks.frustumCulled=false; scene.add(streaks);
+}
+function updateStreaks(){
+  if(!streaks||!streakData) return;
+  const pos=streaks.geometry.attributes.position;
+  const fx=Math.sin(S.heading), fz=Math.cos(S.heading);
+  for(let i=0;i<STREAK_N;i++){
+    const d=streakData[i];
+    let dx=d.x-S.pos.x, dz=d.z-S.pos.z;
+    const ahead=dx*fx+dz*fz, dist2=dx*dx+dz*dz;
+    if(ahead<-14 || dist2>STREAK_R*STREAK_R*1.4){
+      const side=(Math.random()-0.5)*STREAK_R*1.5, fwd=STREAK_R*(0.55+Math.random()*0.55);
+      d.x=S.pos.x+fx*fwd+fz*side; d.z=S.pos.z+fz*fwd-fx*side;
+    }
+    pos.setXYZ(i, d.x, waveH(d.x,d.z)+0.07, d.z);
+  }
+  pos.needsUpdate=true;
+  const sp=Math.min(1,(S.vel||0)/(W.maxSpeed||14));
+  streaks.material.opacity = S.airborne?0:Math.max(0,(sp-0.12))*0.7;
+}
+
+function buildSpray(){
+  const g=new THREE.BufferGeometry();
+  const pos=new Float32Array(SPRAY_N*3); pos.fill(-9999);
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  const m=new THREE.PointsMaterial({color:0xffffff,size:0.26,transparent:true,opacity:0.9,
+    sizeAttenuation:true,depthWrite:false});
+  spray=new THREE.Points(g,m); spray.frustumCulled=false; scene.add(spray);
+  sprayData=Array.from({length:SPRAY_N},()=>({life:0,vx:0,vy:0,vz:0})); sprayHead=0;
+}
+
+function updateSpray(dt){
+  if(!spray) return;
+  const pos=spray.geometry.attributes.position;
+  const hx=Math.sin(S.heading), hz=Math.cos(S.heading);   // forward
+  const lift=W.liftSpeed||4;
+  // emit from the board at the waterline, rate scales with speed
+  if(!S.airborne && S.vel>lift*0.3){
+    const sp=Math.min(1,S.vel/(W.maxSpeed||14));
+    const rate=2+Math.round(sp*9);
+    for(let k=0;k<rate;k++){
+      sprayHead=(sprayHead+1)%SPRAY_N; const i=sprayHead, d=sprayData[i];
+      d.life=0.45+Math.random()*0.4;
+      const back=0.15+Math.random()*0.35, lat=(Math.random()-0.5)*0.55;
+      const px=S.pos.x - hx*back + hz*lat;     // hz,-hx = lateral (starboard)
+      const pz=S.pos.z - hz*back - hx*lat;
+      pos.setXYZ(i, px, 0.06, pz);
+      const speedKick=1.0+sp*2.5;
+      d.vx=-hx*speedKick + hz*lat*3;
+      d.vz=-hz*speedKick - hx*lat*3;
+      d.vy=1.0+Math.random()*1.6+sp*1.2;
+    }
+  }
+  for(let i=0;i<SPRAY_N;i++){
+    const d=sprayData[i]; if(d.life<=0) continue;
+    d.life-=dt; if(d.life<=0){ pos.setXYZ(i,-9999,-9999,-9999); continue; }
+    d.vy-=6.5*dt;
+    pos.setXYZ(i, pos.getX(i)+d.vx*dt, Math.max(0.03,pos.getY(i)+d.vy*dt), pos.getZ(i)+d.vz*dt);
+  }
+  pos.needsUpdate=true;
+}
+
+function buildScenery(){
+  const g=new THREE.Group();
+  if(cfg.spot==='hawaii'){
+    for(let i=0;i<5;i++){
+      const m=new THREE.Mesh(new THREE.ConeGeometry(20+Math.random()*14,18+Math.random()*16,5),
+        new THREE.MeshStandardMaterial({color:0x2f5d3a,roughness:1}));
+      m.position.set(-160+i*30+Math.random()*10,6,-200-Math.random()*40); g.add(m);
+    }
+  } else if(cfg.spot==='grancanaria'){
+    const dune=new THREE.Mesh(new THREE.SphereGeometry(60,16,10,0,Math.PI*2,0,Math.PI/2),
+      new THREE.MeshStandardMaterial({color:0xc6a05a,roughness:1}));
+    dune.position.set(40,-2,-230); dune.scale.set(3,0.5,1.4); g.add(dune);
+  } else {
+    for(let i=0;i<4;i++){
+      const m=new THREE.Mesh(new THREE.BoxGeometry(50,8+Math.random()*8,40),
+        new THREE.MeshStandardMaterial({color:0x6f7d52,roughness:1}));
+      m.position.set(-120+i*70,2,-240); g.add(m);
+    }
+  }
+  scene.add(g);
+
+  // ---- wind flag: a pole with a pennant streaming downwind (reads wind direction) ----
+  flag=new THREE.Group();
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,9,8),
+    new THREE.MeshStandardMaterial({color:0xdddddd,roughness:0.7}));
+  pole.position.y=4.5; flag.add(pole);
+  // triangular pennant in +X local; we orient the whole group so +X faces downwind
+  const pg=new THREE.Shape(); pg.moveTo(0,0); pg.lineTo(4.4,0.5); pg.lineTo(0,1.6); pg.lineTo(0,0);
+  const pennant=new THREE.Mesh(new THREE.ShapeGeometry(pg),
+    new THREE.MeshStandardMaterial({color:0xff5a3c,side:THREE.DoubleSide,roughness:0.8}));
+  pennant.position.set(0,7.4,0); pennant.rotation.x=-Math.PI/2; pennant.name='pennant'; flag.add(pennant);
+  // place it upwind, off to the side, and aim +X local along the downwind direction
+  flag.position.set(18,0,-8);
+  flag.rotation.y=Math.atan2(windToward.x, windToward.z);
+  scene.add(flag);
+}
+
+/* ---------- realistic geometry builders ---------- */
+
+// Swept, tapered, curved airfoil wing (front/rear foil wings). Local +X=span, +Z=chord, +Y=thickness.
+function buildSweptWing({span,chordRoot,chordTip,thick,sweep,dihedral,color,seg=22,prof=16,metal=0.35,rough=0.3}){
+  const verts=[], idx=[];
+  for(let j=0;j<=seg;j++){
+    const su=(j/seg)*2-1;
+    const x=su*span/2;
+    const chord=THREE.MathUtils.lerp(chordRoot,chordTip,Math.pow(Math.abs(su),0.6));
+    const zc=sweep*su*su;                 // tips sweep back (-z if sweep<0)
+    const yc=-dihedral*su*su;             // tips drop (anhedral)
+    for(let k=0;k<prof;k++){
+      const a=(k/prof)*Math.PI*2;
+      const camber=Math.sin(a)>0?1.15:0.85;           // slight asymmetric airfoil
+      const cz=Math.cos(a)*chord*0.5;
+      const cy=Math.sin(a)*thick*chord*0.5*camber;
+      verts.push(x, yc+cy, zc+cz);
+    }
+  }
+  for(let j=0;j<seg;j++) for(let k=0;k<prof;k++){
+    const a=j*prof+k,b=j*prof+(k+1)%prof,c=(j+1)*prof+k,d=(j+1)*prof+(k+1)%prof;
+    idx.push(a,c,b, b,c,d);
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+  g.setIndex(idx); g.computeVertexNormals();
+  const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color,metalness:metal,roughness:rough,side:THREE.DoubleSide}));
+  m.castShadow=true; return m;
+}
+
+function boardOutline(scale){
+  const L=1.75, Wd=0.62, N=28, right=[];
+  for(let i=0;i<=N;i++){ const t=i/N; const y=(-L/2+t*L)*scale;
+    // narrow nose (t→1), wide rounded tail (t→0)
+    let w=Wd*0.5*Math.pow(Math.sin(Math.PI*Math.min(0.999,Math.max(0.001,Math.pow(t,0.92)))),0.62);
+    right.push(new THREE.Vector2(Math.max(0.035,w)*scale,y));
+  }
+  const sh=new THREE.Shape();
+  sh.moveTo(right[0].x,right[0].y);
+  for(let i=1;i<right.length;i++) sh.lineTo(right[i].x,right[i].y);
+  for(let i=right.length-1;i>=0;i--) sh.lineTo(-right[i].x,right[i].y);
+  sh.closePath(); return sh;
+}
+
+function buildBoard(){
+  const g=new THREE.Group();
+  const geo=new THREE.ExtrudeGeometry(boardOutline(1),
+    {depth:0.12,bevelEnabled:true,bevelThickness:0.05,bevelSize:0.055,bevelSegments:5,steps:1,curveSegments:24});
+  geo.rotateX(-Math.PI/2); geo.translate(0,-0.06,0);
+  const board=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0xeef2f7,roughness:0.45,metalness:0.05}));
+  board.castShadow=true; board.receiveShadow=true; g.add(board);
+  // deck traction pad
+  const pgeo=new THREE.ExtrudeGeometry(boardOutline(0.82),{depth:0.02,bevelEnabled:false,curveSegments:24});
+  pgeo.rotateX(-Math.PI/2);
+  const pad=new THREE.Mesh(pgeo,new THREE.MeshStandardMaterial({color:0x1b2430,roughness:0.97}));
+  pad.position.y=0.065; g.add(pad);
+  // colour rail stripe
+  const sgeo=new THREE.ExtrudeGeometry(boardOutline(0.94),{depth:0.03,bevelEnabled:false,curveSegments:24});
+  sgeo.rotateX(-Math.PI/2);
+  const stripe=new THREE.Mesh(sgeo,new THREE.MeshStandardMaterial({color:0x1b9e98,roughness:0.5}));
+  stripe.position.y=-0.055; g.add(stripe);
+  // Foot straps. The two FRONT straps form a "V" (each angled ~45° toward the nose+centreline,
+  // mirror of each other). The BACK strap is LONGITUDINAL (along the board length) so the rear
+  // foot enters it sideways/across. These fixed orientations are mirrored by the feet below.
+  function strapAt(lx,fz,rot){
+    const s=new THREE.Mesh(new THREE.TorusGeometry(0.062,0.017,8,16,Math.PI),
+      new THREE.MeshStandardMaterial({color:0x0c0f12,roughness:0.92}));
+    s.position.set(lx,0.085,fz); s.rotation.y=rot||0; g.add(s); return s;
+  }
+  strapAt(0.09,0.28, -Math.PI/4); strapAt(-0.09,0.28, Math.PI/4); // front-right, front-left → V
+  strapAt(0,-0.20, Math.PI/2);                 // back-central, LONGITUDINAL (along board length)
+  return g;
+}
+
+function buildFoil(mastH){
+  const g=new THREE.Group();
+  const carbon=new THREE.MeshStandardMaterial({color:0x20252b,metalness:0.75,roughness:0.22});
+  const wingCol=0x148a86;
+  // mast: thin vertical airfoil plate
+  const mast=buildSweptWing({span:mastH,chordRoot:0.17,chordTip:0.14,thick:0.34,sweep:0.015,dihedral:0,color:0x20252b,seg:6,prof:14,metal:0.75,rough:0.22});
+  mast.rotation.z=Math.PI/2; mast.position.set(0,-mastH/2-0.05,0.02); g.add(mast);
+  // fuselage
+  const fuse=new THREE.Mesh(new THREE.CylinderGeometry(0.034,0.024,1.0,12),carbon);
+  fuse.rotation.x=Math.PI/2; fuse.position.set(0,-mastH-0.02,0.02); g.add(fuse);
+  // front wing (forward), curved & swept
+  const fw=buildSweptWing({span:0.52+cfg.wing/2400*0.9,chordRoot:0.22,chordTip:0.07,thick:0.42,sweep:-0.18,dihedral:0.16,color:wingCol});
+  fw.position.set(0,-mastH-0.02,0.36); g.add(fw);
+  // rear stabilizer
+  const rw=buildSweptWing({span:0.34,chordRoot:0.11,chordTip:0.05,thick:0.42,sweep:-0.06,dihedral:0.06,color:wingCol});
+  rw.position.set(0,-mastH-0.02,-0.44); g.add(rw);
+  return g;
+}
+
+// Rider built facing +Z = WINDWARD (arms/wing go +Z). In buildRig the group is
+// rotated +90° about Y so the body stands SIDEWAYS to travel: front foot -> nose (+Z world),
+// back foot -> tail, chest toward the wind, looking forward over the front shoulder.
+function buildRider(){
+  const g=new THREE.Group();
+  const suit=new THREE.MeshStandardMaterial({color:0x12181f,roughness:0.62});
+  const accent=new THREE.MeshStandardMaterial({color:0x1b9e98,roughness:0.6});
+  const skin=new THREE.MeshStandardMaterial({color:0xd6a07a,roughness:0.75});
+
+  // pelvis in its own group so the hips can stay SQUARE to the legs in normal stance and
+  // only rotate toward the wing when riding switch (set each frame in the step loop).
+  const hipsG=new THREE.Group(); hipsG.position.set(0,0.92,0.05); g.add(hipsG);
+  const hips=new THREE.Mesh(new THREE.SphereGeometry(0.17,14,12),suit);
+  hips.scale.set(0.92,0.78,0.86); hips.castShadow=true; hipsG.add(hips);
+
+  // torso upright, shoulders slightly back (-Z) to hang off the wing's pull
+  const torsoG=new THREE.Group(); torsoG.position.set(0,0.98,0.04); torsoG.rotation.x=-0.06; g.add(torsoG);
+  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(0.16,0.4,8,14),suit);
+  torso.position.y=0.22; torso.scale.set(1,1,0.72); torso.castShadow=true; torsoG.add(torso);
+  const chest=new THREE.Mesh(new THREE.CapsuleGeometry(0.168,0.14,8,14),accent);
+  chest.position.y=0.34; chest.scale.set(1,1,0.74); torsoG.add(chest);
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.06,0.09,8),skin); neck.position.y=0.55; torsoG.add(neck);
+  // head turned to look toward the nose (world +Z = local -X) → yaw about Y
+  const headG=new THREE.Group(); headG.position.set(0,0.64,0.02); headG.rotation.y=1.0; torsoG.add(headG);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.135,18,16),skin); head.castShadow=true; headG.add(head);
+  const cap=new THREE.Mesh(new THREE.SphereGeometry(0.142,18,12,0,Math.PI*2,0,Math.PI*0.55),accent); cap.position.y=0.01; headG.add(cap);
+  const bun=new THREE.Mesh(new THREE.SphereGeometry(0.05,10,8),new THREE.MeshStandardMaterial({color:0x3a2a1f,roughness:0.9}));
+  bun.position.set(-0.12,0.03,0); headG.add(bun);
+
+  // arms reach toward the wind (+Z) and up to grip the strut
+  function arm(side){
+    const grp=new THREE.Group(); grp.position.set(side*0.16,1.3,0);
+    const upper=new THREE.Mesh(new THREE.CapsuleGeometry(0.055,0.24,6,10),suit);
+    upper.position.set(0,0.0,0.17); upper.rotation.x=-1.2; grp.add(upper);
+    const fore=new THREE.Mesh(new THREE.CapsuleGeometry(0.047,0.26,6,10),skin);
+    fore.position.set(-side*0.02,0.05,0.42); fore.rotation.x=-1.5; grp.add(fore);
+    const hand=new THREE.Mesh(new THREE.SphereGeometry(0.05,10,8),skin); hand.position.set(0,0.08,0.58); grp.add(hand);
+    return grp;
+  }
+  const armR=arm(1), armL=arm(-1);
+  g.add(armR); g.add(armL);
+
+  // Legs live in a board-aligned group so the feet stay planted on the deck while the
+  // upper body swings to face the wing. Each leg is a 2-bone limb ANCHORED at the hip
+  // (near the pelvis) and AIMED at its foot in the strap each frame — so it bends
+  // naturally and never detaches from the body, however the feet are placed.
+  const legsG=new THREE.Group(); g.add(legsG);
+  const LEGLEN=0.80;               // built hip→ankle length (scaled to reach the foot)
+  function limb(){
+    const grp=new THREE.Group();   // built pointing −Y: hip at origin, ankle near −LEGLEN
+    const thigh=new THREE.Mesh(new THREE.CapsuleGeometry(0.088,0.30,6,10),suit);
+    thigh.position.y=-0.21; thigh.castShadow=true; grp.add(thigh);
+    const knee=new THREE.Mesh(new THREE.SphereGeometry(0.078,10,8),suit); knee.position.y=-0.40; grp.add(knee);
+    const shin=new THREE.Mesh(new THREE.CapsuleGeometry(0.072,0.30,6,10),suit);
+    shin.position.y=-0.60; shin.castShadow=true; grp.add(shin);
+    return grp;
+  }
+  function footMesh(){
+    const f=new THREE.Mesh(new THREE.BoxGeometry(0.13,0.06,0.27),suit); f.castShadow=true; return f;
+  }
+  const limbR=limb(), limbL=limb(); legsG.add(limbR); legsG.add(limbL);
+  const footR=footMesh(), footL=footMesh(); legsG.add(footR); legsG.add(footL);
+  // expose animatable parts: limbs+feet (aimed into straps), torso/head twist, arms
+  g.userData={legsG, limbR, limbL, footR, footL, LEGLEN, hipsG, torsoG, headG, armL, armR};
+  return g;
+}
+
+// Wing in local frame: strut along X (the rider grips it fore-aft after rotation),
+// canopy is a half-disc rising +Y, leading-edge tube as the curved rim. Windward = +Z bow.
+function buildWingSail(size){
+  // Correct wing structure:
+  //  - chord (LE→TE) runs along X  → LE/front point at -X (toward nose), TE at +X (tail)
+  //  - span (tip→tip) runs vertically along Y  → top tip +Y, bottom tip -Y
+  //  - canopy faces ±Z (normal); wind from +Z(local)=windward, belly toward -Z
+  // The rider grips the strut along X (fore/aft), front "punta" stays horizontal.
+  const g=new THREE.Group();
+  // CRESCENT planform like a real handheld wing:
+  //  - span (tip→tip) runs vertically along Y; tips taper to POINTS
+  //  - LE arcs FORWARD at centre (the "punta") and sweeps BACK to the tips
+  //  - chord is max at centre, →0 at the tips  ⇒ concave trailing edge
+  //  - canopy bellies toward −Z (leeward); strut along the centre chord (X)
+  const k=size/7;
+  const S       =1.05+k*0.50;           // span half (tip reach)
+  const chordMax=1.18+k*0.45;           // centre chord (LE→TE)
+  const sweep   =0.22+k*0.06;           // tips sweep back toward rider (+X)
+  const bmax    =1.02;                  // arch half-angle (rad) — the "C" curl
+  const Rsp     = S/Math.sin(bmax);     // arch radius
+  const tubeR0  =0.058+k*0.03;          // LE tube radius at centre
+  const camber  =0.10+k*0.04;
+
+  const leMat=new THREE.MeshStandardMaterial({color:0xeef3f7,roughness:0.42,metalness:0.05});
+  const white =new THREE.MeshStandardMaterial({color:0xf4f7fa,roughness:0.6,side:THREE.DoubleSide});
+  const yellow=new THREE.MeshStandardMaterial({color:0xffc21c,roughness:0.6,side:THREE.DoubleSide});
+  const blue  =new THREE.MeshStandardMaterial({color:0x2b6fb0,roughness:0.6,side:THREE.DoubleSide});
+  const teal  =new THREE.MeshStandardMaterial({color:0x17a2a8,roughness:0.6,side:THREE.DoubleSide});
+  const winMat=new THREE.MeshStandardMaterial({color:0xdff2f7,roughness:0.2,metalness:0.05,side:THREE.DoubleSide,transparent:true,opacity:0.5});
+
+  const cs=(s)=>Math.cos(s*Math.PI/2);   // 1 at centre, 0 at tips
+  const chordAt=(s)=> chordMax*Math.pow(Math.max(cs(s),0),0.7);
+  const xoff=(s)=> sweep*(1-cs(s));      // tips swept back
+  // arched centreline: tips curl toward leeward (−Z), making the wing a "C"/taco
+  function base(s){ const b=s*bmax; return new THREE.Vector3(0, Rsp*Math.sin(b), -Rsp*(1-Math.cos(b))); }
+  function archN(s){ const b=s*bmax; return new THREE.Vector3(0, Math.sin(b), Math.cos(b)); } // outward (windward+)
+  function leAt(s){ const B=base(s); return new THREE.Vector3(xoff(s)-chordAt(s)*0.5, B.y, B.z); }
+  function teAt(s){ const B=base(s); return new THREE.Vector3(xoff(s)+chordAt(s)*0.5, B.y, B.z); }
+  // LE inflatable tube, tapering toward the tips (built as a custom swept tube)
+  (function(){
+    const N=56, rings=10, pos=[], idx=[];
+    for(let i=0;i<=N;i++){
+      const s=-1+2*i/N; const c=leAt(s);
+      const cn=leAt(Math.min(1,s+0.02)), tan=cn.clone().sub(c).normalize();
+      let up=new THREE.Vector3(0,0,1); const nx=new THREE.Vector3().crossVectors(tan,up).normalize();
+      const ny=new THREE.Vector3().crossVectors(nx,tan).normalize();
+      const r=tubeR0*(0.35+0.65*cs(s));
+      for(let j=0;j<=rings;j++){ const a=j/rings*Math.PI*2;
+        const p=c.clone().addScaledVector(nx,Math.cos(a)*r).addScaledVector(ny,Math.sin(a)*r);
+        pos.push(p.x,p.y,p.z); }
+    }
+    const rw=rings+1;
+    for(let i=0;i<N;i++) for(let j=0;j<rings;j++){ const a=i*rw+j,b=a+rw; idx.push(a,b,a+1,a+1,b,b+1); }
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    geo.setIndex(idx); geo.computeVertexNormals();
+    const t=new THREE.Mesh(geo,leMat); t.castShadow=true; g.add(t);
+  })();
+
+  // Canopy grid over (s span, c chord 0=LE..1=TE), cambered toward windward (+ archN)
+  function canopyPoint(s,c){
+    const le=leAt(s), te=teAt(s);
+    const p=le.clone().lerp(te,c);
+    p.addScaledVector(archN(s), Math.sin(c*Math.PI)*camber*(0.4+0.6*cs(s)));
+    return p;
+  }
+  function panel(s0,s1,mat){
+    const rows=Math.max(3,Math.round((s1-s0)/2*40)), cols=12;
+    const pos=[],idx=[];
+    for(let i=0;i<=rows;i++){ const s=s0+(s1-s0)*i/rows;
+      for(let j=0;j<=cols;j++){ const c=j/cols; const p=canopyPoint(s,c); pos.push(p.x,p.y,p.z); } }
+    const row=cols+1;
+    for(let i=0;i<rows;i++) for(let j=0;j<cols;j++){ const a=i*row+j,b=a+row; idx.push(a,b,a+1,a+1,b,b+1); }
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    geo.setIndex(idx); geo.computeVertexNormals();
+    const m=new THREE.Mesh(geo,mat); m.castShadow=true; return m;
+  }
+  // span bands tip→tip: pointed blue tips, teal/white body, yellow accent, clear window
+  g.add(panel(0.80,1.0, blue));     // top tip (point)
+  g.add(panel(0.34,0.80, white));   // upper body
+  g.add(panel(0.10,0.34, teal));
+  g.add(panel(-0.08,0.10, winMat)); // window across strut
+  g.add(panel(-0.40,-0.08, yellow));
+  g.add(panel(-0.80,-0.40, white)); // lower body
+  g.add(panel(-1.0,-0.80, blue));   // bottom tip (point)
+
+  // Strut / boom along the centre chord; rider grips it, front "punta" stays horizontal
+  const sLE=leAt(0).clone(); sLE.z*=0.6; const sTE=teAt(0).clone();
+  const boomLen=sTE.distanceTo(sLE);
+  const boom=new THREE.Mesh(new THREE.CylinderGeometry(tubeR0*0.55,tubeR0*0.55,boomLen,10),
+    new THREE.MeshStandardMaterial({color:0x20262b,roughness:0.5,metalness:0.3}));
+  boom.position.copy(sLE.clone().add(sTE).multiplyScalar(0.5));
+  boom.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),sTE.clone().sub(sLE).normalize());
+  g.add(boom);
+  const hMat=new THREE.MeshStandardMaterial({color:0x161f27,roughness:0.95});
+  [0.30,0.58].forEach(f=>{
+    const p=sLE.clone().lerp(sTE,f);
+    const grip=new THREE.Mesh(new THREE.CylinderGeometry(tubeR0*0.9,tubeR0*0.9,0.18,10),hMat);
+    grip.position.copy(p); grip.quaternion.copy(boom.quaternion); g.add(grip);
+  });
+  // front HANDLE on the punta (LE tip) — the rider grabs THIS one-handed when the wing is
+  // dropped low to surf a wave (real wings have a grab handle on the leading-edge nose).
+  const punta=leAt(0);
+  const hLoop=new THREE.Mesh(new THREE.TorusGeometry(0.10,0.024,8,18),hMat);
+  hLoop.name='handle';
+  hLoop.position.set(punta.x-0.05, punta.y, punta.z);
+  hLoop.rotation.set(0,Math.PI/2,0);     // loop opens fore/aft, standing up off the nose
+  g.add(hLoop);
+  const hBar=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.16,8),hMat);
+  hBar.position.set(punta.x-0.14, punta.y, punta.z); hBar.rotation.z=Math.PI/2; g.add(hBar);
+  return g;
+}
+
+function buildRig(){
+  board=new THREE.Group(); scene.add(board);
+
+  // Foilboard (nose along +Z = direction of travel)
+  const deck=buildBoard(); board.add(deck);
+
+  // Foil assembly under the board
+  const mastH=cfg.mast/100*1.05;
+  board.add(buildFoil(mastH));
+
+  // Rider stands SIDEWAYS to travel: rotate +90° so chest faces the wind (+X world),
+  // front foot toward the nose. Slightly sunk so feet meet the deck.
+  rider=new THREE.Group(); rider.position.y=-0.02; rider.rotation.y=Math.PI/2; board.add(rider);
+  bodyParts=buildRider(); rider.add(bodyParts);
+
+  // Handheld wing (built in X-Y plane). Attach to the rotated rider so it sits on the
+  // windward side: forward of the chest at boom/hand height, canted with front tip low.
+  rig=new THREE.Group(); rider.add(rig);
+  rig.position.set(0,1.28,0.46);                 // hand height, out to windward (+Z local)
+  rig.rotation.order='YXZ';
+  rig.rotation.set(-0.16,0,0.06);                // slight rake; front "punta" stays ~horizontal
+  const wing=buildWingSail(cfg.sail);
+  rig.add(wing); wingMesh=wing;
+}
+
+// ---------- Game state ----------
+const S={
+  pos:new THREE.Vector3(0,0,0),
+  heading:0,           // yaw of board direction (rad)
+  vel:0,               // forward speed (m/s)
+  height:0,            // foil ride height above water (0 = on water, >0 flying)
+  vy:0,                // vertical velocity for jumps
+  airborne:false,
+  air:0,               // airtime accumulated
+  // trick tracking
+  spin:0,              // accumulated yaw while airborne (rad)
+  roll:0, rollVel:0,
+  spinVel:0,
+  boardRoll:0,
+  surf:0, waveSlope:0, // wave-face surfing state
+  waterY:0,            // low-pass water surface the foil glides over
+  tack:1, riderYaw:Math.PI/2, // which side the wing is held (+1 starboard / -1 port)
+  correctTack:1, windSideDot:0, cosUp:0, backwind:0, stall:0, inIrons:false, sailLow:0, down:false,
+  switch:false, switchAnim:0, feetSwapped:false, feetAnim:0, maneuver:0, maneuverType:'tack', // switch stance + tack/jibe anim
+  score:0, combo:1, comboTimer:0,
+  reset(){ this.pos.set(0,0,0); this.heading=0; this.vel=2; this.height=0; this.vy=0;
+    this.airborne=false; this.air=0; this.spin=0; this.roll=0; this.rollVel=0; this.spinVel=0;
+    this.boardRoll=0; this.surf=0; this.waveSlope=0; this.waterY=0;
+    this.tack=1; this.riderYaw=Math.PI/2; this.correctTack=1; this.windSideDot=0; this.cosUp=0;
+    this.backwind=0; this.stall=0; this.inIrons=false; this.sailLow=0; this.down=false;
+    this.switch=false; this.switchAnim=0; this.feetSwapped=false; this.feetAnim=0; this.maneuver=0; this.maneuverType='tack';
+    this.score=0; this.combo=1; this.comboTimer=0; }
+};
+
+// ---------- Input ----------
+const keys={};
+let fHeld=false, sHeld=false;
+addEventListener('keydown',e=>{
+  if(e.code==='KeyC') camMode=(camMode+1)%3;
+  if(e.code==='KeyR') S.reset();
+  if(e.code==='KeyM'){ const m=AUD.toggleMute(); const w=$('#warn'); if(w){ w.style.display='block'; w.textContent=m?'🔇 Audio muto (M)':'🔊 Audio attivo (M)'; setTimeout(()=>{ if(playing) w.style.display='none'; },1200); } }
+  if(e.code==='KeyF' && !fHeld){ fHeld=true;
+    if(playing && !S.airborne){
+      S.tack=-S.tack;                       // wing crosses to the other side
+      S.switch=!S.switch;                   // a tack/jibe leaves you in switch (unless you pre-switched)
+      S.maneuver=0.85;                      // overhead wing animation timer
+      S.maneuverType = (S.cosUp>=-0.15)?'tack':'jibe'; // upwind turn = tack, downwind = jibe
+    }
+  }
+  if(e.code==='KeyS' && !sHeld){ sHeld=true;
+    if(playing && !S.airborne){ S.switch=!S.switch; S.feetSwapped=!S.feetSwapped; } // shuffle: swap feet & straighten
+  }
+  keys[e.code]=true;
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+});
+addEventListener('keyup',e=>{ keys[e.code]=false; if(e.code==='KeyF') fHeld=false; if(e.code==='KeyS') sHeld=false; });
+
+// ---------- Wind (world) ----------
+// windFrom = unit vector the wind blows FROM. Fixed per session; the player must read
+// the wind rose and keep the wing on the correct (windward) side, flipping on each tack.
+let windFrom=new THREE.Vector3(1,0,0);
+let windToward=new THREE.Vector3(-1,0,0);
+let flag=null;
+
+let camMode=0;
+let playing=false, jumpQueued=false, popCharge=0;
+
+// ---------- Audio engine (procedural, Web Audio API — no external files) ----------
+const AUD = {
+  ctx:null, ready:false, muted:false, master:null, noiseBuf:null,
+  windF:null, windG:null, waterF:null, waterG:null, foilOsc:null, foilG:null,
+  musicEl:null, musicG:null, musicOk:false,
+  init(){
+    if(this.ready) return;
+    const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    const ctx = this.ctx = new AC();
+    const master = this.master = ctx.createGain(); master.gain.value=0.0001; master.connect(ctx.destination);
+    // pink-ish noise buffer (2s loop)
+    const len = ctx.sampleRate*2, buf = ctx.createBuffer(1, len, ctx.sampleRate), d=buf.getChannelData(0);
+    let b0=0,b1=0,b2=0;
+    for(let i=0;i<len;i++){ const w=Math.random()*2-1; b0=0.99*b0+w*0.05; b1=0.96*b1+w*0.07; b2=0.57*b2+w*0.30; d[i]=(b0+b1+b2+w*0.1)*0.32; }
+    this.noiseBuf = buf;
+    // WIND: looping noise -> lowpass -> gain
+    const wind=ctx.createBufferSource(); wind.buffer=buf; wind.loop=true;
+    const wf=this.windF=ctx.createBiquadFilter(); wf.type='lowpass'; wf.frequency.value=600;
+    const wg=this.windG=ctx.createGain(); wg.gain.value=0.0;
+    wind.connect(wf); wf.connect(wg); wg.connect(master); wind.start();
+    // WATER rush: looping noise -> bandpass -> gain
+    const water=ctx.createBufferSource(); water.buffer=buf; water.loop=true;
+    const af=this.waterF=ctx.createBiquadFilter(); af.type='bandpass'; af.frequency.value=1200; af.Q.value=0.7;
+    const ag=this.waterG=ctx.createGain(); ag.gain.value=0.0;
+    water.connect(af); af.connect(ag); ag.connect(master); water.start();
+    // FOIL hum: triangle oscillator -> gain
+    const osc=this.foilOsc=ctx.createOscillator(); osc.type='triangle'; osc.frequency.value=70;
+    const og=this.foilG=ctx.createGain(); og.gain.value=0.0;
+    osc.connect(og); og.connect(master); osc.start();
+    // BACKGROUND MUSIC: plays the user's own legally-owned file in the game folder.
+    const mg = this.musicG = ctx.createGain(); mg.gain.value = 0.0; mg.connect(master);
+    try{
+      const el = this.musicEl = new Audio();
+      el.loop = true; el.crossOrigin = 'anonymous'; el.preload = 'auto';
+      el.src = encodeURI('War [Joe Satriani].mp3');
+      const src = ctx.createMediaElementSource(el);
+      src.connect(mg);
+      el.addEventListener('error', ()=>{ this.musicOk=false; });
+    }catch(e){ /* media source unsupported — skip music */ }
+    this.ready=true;
+    master.gain.setTargetAtTime(this.muted?0.0001:0.9, ctx.currentTime, 0.4);
+  },
+  resume(){ if(this.ctx && this.ctx.state==='suspended') this.ctx.resume(); },
+  startMusic(){
+    if(!this.ready || !this.musicEl) return;
+    const p = this.musicEl.play();
+    if(p && p.catch) p.catch(()=>{ this.musicOk=false; });
+    this.musicG.gain.setTargetAtTime(this.muted?0.0:0.32, this.ctx.currentTime, 1.2);
+  },
+  toggleMute(){ this.muted=!this.muted; if(this.ready) this.master.gain.setTargetAtTime(this.muted?0.0001:0.9, this.ctx.currentTime, 0.1); return this.muted; },
+  silence(){ if(!this.ready) return; const t=this.ctx.currentTime; this.windG.gain.setTargetAtTime(0,t,0.2); this.waterG.gain.setTargetAtTime(0,t,0.2); this.foilG.gain.setTargetAtTime(0,t,0.2); if(this.musicG){ this.musicG.gain.setTargetAtTime(0,t,0.4); } if(this.musicEl){ try{ this.musicEl.pause(); }catch(e){} } },
+  update(){
+    if(!this.ready||this.muted) return; const t=this.ctx.currentTime;
+    const sp=S.vel, k=Math.min(1, sp/15);
+    const foiling = S.height>0.05 && !S.airborne;
+    // wind: a SOFT low flow (not a fan) — muffled, very quiet, lifts only slightly with speed
+    this.windF.frequency.setTargetAtTime(180 + k*260, t, 0.2);
+    this.windG.gain.setTargetAtTime((S.airborne?0.025:0.014) + k*0.022, t, 0.3);
+    // water rush: barely a whisper, only when planing on the surface
+    const waterVol = S.airborne ? 0.0 : (S.down? 0.02 : Math.min(0.035, sp*0.003));
+    this.waterF.frequency.setTargetAtTime(420 + k*700, t, 0.15);
+    this.waterG.gain.setTargetAtTime(waterVol, t, 0.18);
+    // foil hum: essentially silent (low-friction foil makes almost no noise)
+    this.foilOsc.frequency.setTargetAtTime(50 + k*90, t, 0.1);
+    this.foilG.gain.setTargetAtTime(foiling? 0.006+k*0.006 : 0.0, t, 0.2);
+  },
+  blip(freq,dur,type='sine',vol=0.3,sweep=0){
+    if(!this.ready||this.muted) return; const ctx=this.ctx, t=ctx.currentTime;
+    const o=ctx.createOscillator(); o.type=type; o.frequency.setValueAtTime(freq,t);
+    if(sweep) o.frequency.exponentialRampToValueAtTime(Math.max(20,freq+sweep), t+dur);
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t+dur+0.02);
+  },
+  burst(dur,freq,q,vol,type='bandpass'){
+    if(!this.ready||this.muted) return; const ctx=this.ctx, t=ctx.currentTime;
+    const s=ctx.createBufferSource(); s.buffer=this.noiseBuf; s.loop=true;
+    const f=ctx.createBiquadFilter(); f.type=type; f.frequency.setValueAtTime(freq,t); if(q) f.Q.value=q;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    s.connect(f); f.connect(g); g.connect(this.master); s.start(t); s.stop(t+dur+0.05);
+  },
+  jump(power=1){ this.blip(260,0.4,'sawtooth',0.30, 560*power); this.burst(0.3, 950, 0.8, 0.20,'highpass'); },
+  duck(){ if(!this.musicG||this.muted) return; const t=this.ctx.currentTime, base=0.32, g=this.musicG.gain; g.cancelScheduledValues(t); g.setValueAtTime(Math.min(g.value,base),t); g.linearRampToValueAtTime(base*0.3,t+0.04); g.setTargetAtTime(base,t+0.22,0.4); },
+  land(){ this.duck(); this.blip(95,0.22,'sine',0.5,-45); this.burst(0.22, 480, 0.6, 0.28,'lowpass'); },
+  splash(){ this.duck(); this.burst(0.75, 1500, 0.5, 0.8,'bandpass'); this.burst(0.55, 600, 0.7, 0.5,'lowpass'); },
+  score(){ this.blip(740,0.12,'square',0.2); setTimeout(()=>this.blip(990,0.16,'square',0.2),95); },
+};
+
+// ---------- Trick popup ----------
+let popTimer=0;
+function showTrick(txt,pts){
+  trickPop.innerHTML=txt+`<div style="font-size:22px;color:#fff">+${pts} <span style="color:var(--accent)">x${S.combo}</span></div>`;
+  trickPop.style.opacity=1; popTimer=1.2;
+}
+
+// ---------- Wind & physics constants derived from gear ----------
+let W={};
+function deriveGear(){
+  const windMS=cfg.wind*0.514;            // knots->m/s
+  W.power = cfg.sail * windMS * 0.9;      // available sail thrust scalar
+  W.maxSpeed = 6 + cfg.sail*0.75 + cfg.wind*0.48 - cfg.wing/3000*4; // up to ~30 kn with a fast setup
+  W.liftSpeed = 4.2 - cfg.wing/2400*2.2;  // bigger wing -> lower takeoff speed
+  W.drag = 0.9 - cfg.wing/2400*0.15;
+  W.mavH = cfg.mast/100*0.9;              // max foil ride height
+  W.popBoost = 3.2 + cfg.sail*0.25 + (cfg.mast-75)/20*0.8; // jump power
+  W.windMS=windMS;
+}
+
+// ---------- Start / stop ----------
+$('#play').onclick=()=>{ start(); };
+backBtn.onclick=()=>{ stop(); };
+function start(){
+  AUD.init(); AUD.resume(); AUD.startMusic();
+  deriveGear(); buildWorld(); S.reset();
+  // wind blows FROM +X this session (rider starts on starboard tack, powered)
+  windFrom.set(1,0,0).normalize(); windToward.copy(windFrom).multiplyScalar(-1);
+  menu.style.display='none'; hud.style.display='flex'; scoreWrap.style.display='block';
+  backBtn.style.display='block'; playing=true;
+  $('#windRose').style.display='block';
+  $('#windV').textContent=cfg.wind+' kn';
+}
+function stop(){ playing=false; AUD.silence(); menu.style.display='flex'; hud.style.display='none';
+  scoreWrap.style.display='none'; backBtn.style.display='none';
+  $('#windRose').style.display='none'; $('#warn').style.display='none'; }
+
+// ---------- Resize ----------
+addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight); });
+
+// ---------- Water height fn ----------
+let T=0;
+function waveH(x,z){
+  // local chop (small, high-frequency texture)
+  const a=spot.waveAmp, l=spot.waveLen;
+  const chop = Math.sin((x*0.9+z*0.6)/l + T*0.9)*a
+             + Math.sin((x*0.3-z*1.1)/(l*1.4) + T*0.6)*a*0.6
+             + Math.sin((x*1.7+z*0.2)/(l*0.6) + T*1.4)*a*0.3;
+  // primary swell train: travels in swellDir with a peaky crest (Gerstner-ish look)
+  const sd=spot.swellDir, dl=spot.swellLen, sa=spot.swellAmp;
+  const dx=Math.cos(sd), dz=Math.sin(sd);
+  const ph=(x*dx + z*dz)/dl - T*spot.swellSpeed;
+  const b=Math.sin(ph);
+  const swell = Math.sign(b)*Math.pow(Math.abs(b),0.62)*sa;     // sharp crest, broad trough
+  // secondary cross swell (smaller, different angle) for a real sea state
+  const ph2=(x*Math.cos(sd+0.7) + z*Math.sin(sd+0.7))/(dl*0.72) - T*spot.swellSpeed*1.2;
+  const swell2 = Math.sin(ph2)*sa*0.22;
+  return swell + swell2 + chop;
+}
+function animateWater(){
+  const p=waterGeo.attributes.position, col=waterGeo.attributes.color;
+  const baseC=new THREE.Color(spot.water), deepC=new THREE.Color(spot.deep), foamC=new THREE.Color(0xffffff);
+  const crest=spot.swellAmp, ss=THREE.MathUtils.smoothstep, cl=THREE.MathUtils.clamp;
+  const tmp=new THREE.Color();
+  for(let i=0;i<p.count;i++){
+    const x=p.getX(i), z=p.getZ(i);
+    const h=waveH(x+S.pos.x, z+S.pos.z);
+    p.setY(i, h);
+    // tone: deeper turquoise in troughs → bright crystalline on faces/crests
+    const t = crest>0.001 ? cl(h/(crest+0.001)*0.55+0.42, 0, 1) : 0.55;
+    tmp.copy(deepC).lerp(baseC, t);
+    // whitewater only on the very tops of sizeable crests
+    if(crest>0.4){ const f=ss(h, crest*0.6, crest*0.98); tmp.lerp(foamC, f*0.7); }
+    col.setXYZ(i, tmp.r, tmp.g, tmp.b);
+  }
+  p.needsUpdate=true; col.needsUpdate=true; waterGeo.computeVertexNormals();
+}
+
+// ---------- Main loop ----------
+const clock=new THREE.Clock();
+function loop(){
+  requestAnimationFrame(loop);
+  const dt=Math.min(clock.getDelta(),0.05);
+  if(playing) step(dt);
+  if(playing) AUD.update();
+  renderer.render(scene,camera);
+}
+loop();
+
+function step(dt){
+  T+=dt;
+  const onWater = !S.airborne;
+
+  // ---- steering ----
+  let turn=0;
+  if(keys.KeyA||keys.ArrowLeft) turn+=1;
+  if(keys.KeyD||keys.ArrowRight) turn-=1;
+
+  if(onWater){
+    // heading turn rate depends on speed (need flow to turn)
+    S.heading += turn * dt * (1.2*Math.min(1,S.vel/4)+0.3);
+
+    // pump / accelerate
+    const pumping = keys.KeyW||keys.ArrowUp;
+    const sheetOut = keys.ArrowDown;   // "abbassa la vela" (↓) → depower / surf
+
+    // ---- WIND-RELATIVE SAIL DRIVE ----
+    // Wind window (cosUp = how much the NOSE points into the wind):
+    //   +1 dead into wind (in irons / no-go), 0 beam reach, −1 dead downwind (poppa).
+    // Power peaks on a broad reach (apparent wind strongest) and DROPS again dead
+    // downwind because the apparent wind neutralises the true wind — you depower but
+    // keep gliding. TRUE backwind (sail loads the wrong way and pushes toward you)
+    // happens only on the WRONG TACK: wind hitting the back of the wing → press F.
+    const fwd=new THREE.Vector3(Math.sin(S.heading),0,Math.cos(S.heading));
+    const star=new THREE.Vector3(Math.cos(S.heading),0,-Math.sin(S.heading)); // starboard
+    const cosUp=fwd.dot(windFrom);
+    const sideDot=star.dot(windFrom);       // >0 wind from starboard, <0 from port
+    S.cosUp=cosUp; S.windSideDot=sideDot;
+    S.correctTack = sideDot>=0 ? 1 : -1;    // side the wind comes from = where the wing should be
+    S.inIrons = cosUp>0.74;                 // wingfoils POINT HIGH: no-go zone narrow (~42° off wind)
+    const deadRun = cosUp < -0.80;          // dead downwind: either tack is fine, no backwind
+    const sideLoad = Math.abs(sideDot);
+    // wide bell so close-hauled still drives hard (bolina to ~20-22 kn); peak on a broad reach
+    const eff = THREE.MathUtils.clamp(1.05 - 0.72*Math.pow(cosUp+0.25,2), 0, 1.15);
+    const wrongTack = !deadRun && !S.inIrons && (S.tack!==S.correctTack);
+
+    let drive;
+    if(S.inIrons){
+      drive = -W.power*0.012;               // flogging in the no-go zone: tiny, just bleeds speed
+      S.backwind = Math.max(0, S.backwind - dt*1.2);
+    } else if(wrongTack){
+      drive = -W.power*0.05*(0.40+sideLoad*0.7);  // BACKWIND: pushes toward rider → flip with F
+      S.backwind = Math.min(1, S.backwind + dt*1.15);
+    } else {
+      drive = W.power*0.06*eff*(pumping?1.7:1.0); // powered (downwind naturally depowers via eff)
+      S.backwind = Math.max(0, S.backwind - dt*1.7);
+    }
+    // lower the sail (S): depower so the WAVE drives you — this is how you drop into a surf run
+    if(sheetOut){ drive = Math.min(drive, W.power*0.006); S.sailLow = Math.min(1, S.sailLow + dt*4); }
+    else { S.sailLow = Math.max(0, S.sailLow - dt*4); }
+    S.vel += drive*dt;
+    S.vel -= S.vel*W.drag*0.18*dt;       // drag
+    S.vel = Math.max(0, Math.min(S.vel, W.maxSpeed));
+
+    // ---- foil lift ----
+    if(S.down){
+      // fallen in the water: stuck low until you PUMP (W/↑) back up past takeoff speed (~6 kn)
+      S.height=0;
+      if(S.vel >= W.liftSpeed) S.down=false;
+    } else if(S.vel > W.liftSpeed){
+      const target=Math.min(W.mavH, (S.vel-W.liftSpeed)*0.5);
+      S.height += (target-S.height)*Math.min(1,dt*4);
+    } else {
+      S.height += (0-S.height)*Math.min(1,dt*4);
+    }
+
+    // ---- FALL: held backwinded (wrong tack), or stalling off the foil → wipeout ----
+    const foiling=S.height>0.12;
+    if(S.backwind>0.82 || (foiling && S.vel<W.liftSpeed*0.5 && !S.sailLow)){ S.stall += dt; }
+    else { S.stall = Math.max(0, S.stall - dt*1.6); }
+    if(S.stall>0.7){ wipeout(); }
+    // drop to (near) ZERO speed on the water → you sink off the foil and fall in
+    if(!S.down && !S.airborne && S.vel < 0.5){ wipeout(); }
+
+    // ---- SURF: ride the moving swell face ----
+    // Sample the wave slope along the travel direction. Dropping down the face
+    // (negative slope ahead) accelerates you; climbing it bleeds speed — real surfing.
+    const sdir=new THREE.Vector3(Math.sin(S.heading),0,Math.cos(S.heading));
+    const e=0.7;
+    const hx=(waveH(S.pos.x+e,S.pos.z)-waveH(S.pos.x-e,S.pos.z))/(2*e);
+    const hz=(waveH(S.pos.x,S.pos.z+e)-waveH(S.pos.x,S.pos.z-e))/(2*e);
+    const slope=hx*sdir.x + hz*sdir.z;             // + climbing, − dropping in
+    S.waveSlope=slope;
+    S.surf=Math.max(-1.2, Math.min(1.2, -slope));
+    S.vel += (-slope)*14.0*dt;                      // gravity-along-the-face
+    S.vel = Math.max(0, Math.min(S.vel, W.maxSpeed*1.5));
+    if(spot.swellAmp>0.4 && S.surf>0.25 && S.vel>3){
+      S.score += Math.round(S.surf*S.vel*dt*1.5);   // reward staying in the pocket
+    }
+
+    // ---- POP / jump ----
+    if(keys.Space){ popCharge=Math.min(1, popCharge+dt*2.2); }
+    else if(popCharge>0){
+      // release -> jump. The faster you go, the HIGHER you can boost (high jumps).
+      const flying = S.height>0.05;
+      const hi = THREE.MathUtils.clamp((S.vel-7)/8, 0, 1);   // 0 below 7 m/s → 1 at ~15 m/s (30 kn)
+      S.vy = W.popBoost*(0.5+popCharge*0.8)*(flying?1.15:0.7)*(1+hi*1.25);
+      S.airborne=true; S.air=0; S.spin=0; S.roll=0; S.spinVel=0; S.rollVel=0;
+      popCharge=0;
+    }
+  } else {
+    // ---- AIRBORNE: tricks ----
+    S.surf=0; S.waveSlope=0;
+    S.vy -= 9.8*dt;                    // gravity
+    S.height += S.vy*dt;
+    S.air += dt;
+
+    // spin (yaw) with A/D
+    if(keys.KeyA||keys.ArrowLeft) S.spinVel += dt*7;
+    if(keys.KeyD||keys.ArrowRight) S.spinVel -= dt*7;
+    S.spinVel*=(1-dt*0.4);
+    S.spin += S.spinVel*dt;
+    S.heading += S.spinVel*dt;
+
+    // roll / flip with Q/E
+    if(keys.KeyE) S.rollVel += dt*7;
+    if(keys.KeyQ) S.rollVel -= dt*7;
+    S.rollVel*=(1-dt*0.4);
+    S.roll += S.rollVel*dt;
+
+    // landing — you only WIPE OUT on a botched rotation: a flip not finished (landing
+    // inverted / on your back) or a yaw spin left badly sideways. A clean straight landing —
+    // even from a big high jump — is fine, and a SLIGHT nose-first touch is fine too.
+    if(S.height<=0){
+      S.height=0; S.airborne=false;
+      const TAU=Math.PI*2;
+      // flip axis (Q/E front/back loop): measure distance to the nearest COMPLETED full rotation
+      const flip=((S.roll%TAU)+TAU)%TAU;            // 0..2π
+      const flipOff=Math.min(flip, TAU-flip);       // 0 = landed flat; π = upside-down / on the back
+      const flipClean = flipOff < 0.9;              // ≤ ~50°: a touch nose-first is OK; on the back = crash
+      // yaw spin (A/D 360s): only a badly unfinished spin (landing sideways) wipes out
+      const spinm=((S.spin%TAU)+TAU)%TAU;
+      const spinOff=Math.min(spinm, TAU-spinm);
+      const spinClean = spinOff < 1.2;              // ≤ ~70° off straight is recoverable
+      if(!flipClean || !spinClean){ wipeout(); }    // botched rotation → in the water
+      else { AUD.land(); scoreLanding(); }
+      S.vy=0; S.roll=0; S.spin=0; S.spinVel=0; S.rollVel=0;
+    }
+  }
+
+  // ---- move position ----
+  const dir=new THREE.Vector3(Math.sin(S.heading),0,Math.cos(S.heading));
+  S.pos.addScaledVector(dir, S.vel*dt);
+
+  // ---- apply transforms to board ----
+  // The foil sits in the water and acts as a low-pass filter over the swell: the
+  // board+rider GLIDE over the bumps instead of tracking every crest/trough. We
+  // also keep a guaranteed clearance over the *instantaneous* local surface so the
+  // rider is never swallowed by a wave — that was the un-playable bit.
+  const localWave = waveH(S.pos.x,S.pos.z);
+  S.waterY += (localWave - S.waterY) * Math.min(1, dt*1.7);   // glide over chop, follow slow swell gently
+  const ride = Math.max(S.waterY + 0.34, localWave + 0.30) + S.height - (S.down?0.6:0);
+  board.position.set(S.pos.x, ride, S.pos.z);
+  board.rotation.set(0,0,0);
+  board.rotation.y = S.heading;
+  // pitch up slightly when flying / popping; tilt along the wave face when surfing
+  const pitch = -Math.min(0.3, S.vel*0.02) + (popCharge*0.25) + (S.airborne? Math.sin(S.air*3)*0.05:0)
+              + (onWater? THREE.MathUtils.clamp(S.waveSlope*0.4,-0.45,0.45):0);
+  // trick rotations: spin = yaw (already in heading); front/back flip = pitch around X axis
+  board.rotateX(pitch + S.roll);
+  // crouch on pop charge
+  rider.scale.y = 1 - popCharge*0.25;
+
+  // ---- body faces the wing side; FEET stay planted on the board through a tack ----
+  if(S.maneuver>0) S.maneuver=Math.max(0, S.maneuver-dt);
+  const yawTarget = S.tack*Math.PI/2;
+  S.riderYaw += (yawTarget - S.riderYaw)*Math.min(1, dt*(S.maneuver>0?4:7));
+  rider.rotation.y = S.riderYaw;
+
+  // wing overhead arc parameter (shared by rig + arms)
+  let arc=0;
+  if(S.maneuver>0){
+    const p=1 - S.maneuver/0.85;
+    arc=Math.sin(THREE.MathUtils.clamp(p,0,1)*Math.PI);   // 0→1→0: rises over the head then settles
+  }
+
+  if(bodyParts && bodyParts.userData.legsG){
+    const bp=bodyParts.userData, lerp=THREE.MathUtils.lerp;
+    // counter-rotate the legs so the feet keep pointing along the board (don't sweep on a tack)
+    bp.legsG.rotation.y = Math.PI/2 - S.riderYaw;
+    // Hips anchored near the pelvis (board-aligned, slight lateral spread) — the limbs are
+    // AIMED from here to the foot so the legs always stay attached to the body.
+    const hipR=new THREE.Vector3(0,0.86, 0.075), hipL=new THREE.Vector3(0,0.86,-0.075);
+    // NON-SWITCH (default, f=0): the FRONT foot is in the front strap on the side AWAY FROM
+    // THE WING (wing toward local +Z → away = z=−0.09); the other foot is in the back-central
+    // strap. SWITCH (f=1) swaps them: the new front foot moves to the near-wing front strap.
+    //   FRONT_AWAY(-0.28,-0.09)  FRONT_NEAR(-0.28,+0.09)  BACK_C(+0.20,0)
+    S.feetAnim += ((S.feetSwapped?1:0) - S.feetAnim)*Math.min(1, dt*7);
+    const f=S.feetAnim, hop=Math.sin(f*Math.PI)*0.06, fy=0.12+hop;
+    // LEFT foot: non-switch = FRONT (away-from-wing) → switch = back-central
+    const footLp=new THREE.Vector3(lerp(-0.28,0.20,f), fy, lerp(-0.09,0,f));
+    // RIGHT foot: non-switch = back-central → switch = front (near-wing)
+    const footRp=new THREE.Vector3(lerp(0.20,-0.28,f), fy, lerp(0,0.09,f));
+    bp.footR.position.copy(footRp); bp.footL.position.copy(footLp);
+    // Each foot takes the orientation of the strap it OCCUPIES:
+    //  • FRONT straps form a V → front foot points to nose at ~45° toward the inside.
+    //  • BACK strap is longitudinal → the rear foot lies ACROSS the board (enters sideways).
+    // (-π/2 = toes straight to the nose; 0 = toes across the board toward the wing.)
+    const A_FRONT_L = -Math.PI/2 + 0.6;   // front-left strap (V arm) — toes nose+inside
+    const A_FRONT_R = -Math.PI/2 - 0.6;   // front-right strap (V arm) — toes nose+inside
+    const A_BACK    = -0.15;              // longitudinal back strap — foot nearly across
+    // no-switch: footL in FRONT_L, footR in BACK.  switch: footL→BACK, footR→FRONT_R.
+    bp.footL.rotation.y = lerp(A_FRONT_L, A_BACK, f);
+    bp.footR.rotation.y = lerp(A_BACK, A_FRONT_R, f);
+    // aim each 2-bone limb from hip → ankle (just above the foot)
+    const DOWN=new THREE.Vector3(0,-1,0);
+    const aim=(limb,hip,foot)=>{
+      limb.position.copy(hip);
+      const d=new THREE.Vector3().subVectors(new THREE.Vector3(foot.x,foot.y+0.05,foot.z),hip);
+      const L=d.length(); limb.scale.set(1, Math.max(0.45,L/bp.LEGLEN), 1);
+      limb.quaternion.setFromUnitVectors(DOWN, d.normalize());
+    };
+    aim(bp.limbR,hipR,footRp); aim(bp.limbL,hipL,footLp);
+    // upper-body winds up toward the wing when riding switch (feet do the real work)
+    S.switchAnim += ((S.switch?1:0) - S.switchAnim)*Math.min(1, dt*6);
+    // hips: SQUARE to the legs in normal stance (counter-rotate like legsG), and only
+    // swing toward the wing when riding switch.
+    // normal stance: pelvis sits almost square to the LEGS (only slightly open to the wing),
+    // so it doesn't look twisted 90° while the feet point down the board. Riding switch it
+    // winds fully toward the wing with the torso (switchAnim→1 → 0 = wing-facing, unchanged).
+    // HIPS: in normal (no-switch) stance the rider just STANDS — pelvis square and facing the
+    // wing (rotation 0 in the wing-facing body frame), NOT twisted. Riding SWITCH the pelvis
+    // winds toward the wing with the torso.
+    bp.hipsG.rotation.y = S.switchAnim*0.45;
+    // TORSO: chest is squared to the wing in NO-SWITCH (more turned); riding SWITCH it is
+    // slightly LESS turned (the wind-up comes from the hips/feet instead). Inverted vs before.
+    bp.torsoG.rotation.y = lerp(0.42, 0.22, S.switchAnim);
+    bp.headG.rotation.y  = lerp(0.6, -0.3, S.switchAnim);
+    // ARMS: overhead during a tack/jibe; when DEPOWERED (↓ to surf) it goes ONE-HANDED — the
+    // REAR hand (the one nearer the TAIL, so it can carry the wing furthest back) grips the
+    // punta handle; the FRONT hand lets go and the arm hangs relaxed. Which hand is "rear"
+    // depends only on the rider's facing: nose is rider-local −sin(riderYaw) on X, so the rear
+    // hand is +X (armR) on starboard (sin>0) and −X (armL) on port — it tracks tacks/jibes.
+    const armLift = arc*1.15;
+    const reach = S.sailLow;
+    const rearIsL = Math.sin(S.riderYaw) < 0;
+    const rearArm = rearIsL ? bp.armL : bp.armR;
+    const frontArm = rearIsL ? bp.armR : bp.armL;
+    bp.armR.rotation.x = -armLift;  bp.armR.rotation.z = 0;
+    bp.armL.rotation.x = -armLift;  bp.armL.rotation.z = 0;
+    if(reach>0.001){
+      // rear (grab) hand drops DOWN & a touch toward the tail to hold the low handle
+      rearArm.rotation.x = -armLift + reach*1.0;
+      rearArm.rotation.z = (rearIsL? -1:1) * reach*0.28;
+      // front hand releases: arm hangs relaxed at the side
+      frontArm.rotation.x = -armLift + reach*0.18;
+      frontArm.rotation.z = (rearIsL? 1:-1) * reach*0.42;
+    }
+  }
+
+  // ---- wing: luff in backwind, drop to surf, and arc OVER THE HEAD in a tack/jibe ----
+  if(rig){
+    const luff = (S.backwind>0.25 && !S.airborne) ? Math.sin(T*34)*0.16*S.backwind : 0;
+    const mY=arc*0.85, mPitch=-arc*1.25;
+    // DEPOWER (↓): lay the wing flat & low and let it trail BACK from the rear hand. We place a
+    // base pose, then ANCHOR the punta HANDLE exactly onto the rear hand each frame so the grip
+    // is always real and the wing extends rearward (never through the body or head).
+    rig.position.set(0, 1.28 - S.sailLow*0.30 + mY, 0.46 - S.sailLow*0.20);
+    rig.rotation.set(-0.16 - S.sailLow*1.1 + mPitch, 0, 0.06 + luff);
+    // MIRROR the canopy across the strut so it inflates on the correct (downwind) side for
+    // the current tack: scale.x = sin(riderYaw) is +1 on one tack, −1 on the other and
+    // passes through ~0 (wing edge-on/feathered overhead) midway through a tack/jibe.
+    let mir=Math.sin(S.riderYaw); if(Math.abs(mir)<0.06) mir=(mir<0?-0.06:0.06);
+    if(wingMesh) wingMesh.scale.x=mir;
+    // SNAP the handle to the rear hand (only while depowered)
+    if(S.sailLow>0.001 && bodyParts){
+      const handleMesh = wingMesh && wingMesh.getObjectByName('handle');
+      if(handleMesh){
+        const rearArm = (Math.sin(S.riderYaw)<0) ? bodyParts.userData.armL : bodyParts.userData.armR;
+        const handMesh = rearArm.children[2]; // [upper, fore, hand]
+        board.updateMatrixWorld(true);
+        const _hand = handMesh.getWorldPosition(new THREE.Vector3());
+        rig.updateMatrixWorld(true);
+        const _handle = handleMesh.getWorldPosition(new THREE.Vector3());
+        const a = rider.worldToLocal(_hand.clone());
+        const b = rider.worldToLocal(_handle.clone());
+        rig.position.add(a.sub(b).multiplyScalar(S.sailLow));
+      }
+    }
+  }
+
+  // foam follows board on water
+  foam.visible=onWater;
+  foam.position.set(S.pos.x, localWave+0.02, S.pos.z);
+  foam.rotation.set(-Math.PI/2,0,S.heading);
+  foam.material.opacity=0.12+Math.min(0.4,S.vel/W.maxSpeed*0.45);
+  foam.scale.set(0.45+S.vel/W.maxSpeed*0.35, 0.8+S.vel/W.maxSpeed*1.1, 1);
+
+  // sun & water follow so it feels infinite
+  water.position.set(S.pos.x,0,S.pos.z);
+  sun.position.set(S.pos.x-60,80,S.pos.z+40);
+  sun.target.position.copy(S.pos); sun.target.updateMatrixWorld?.();
+
+  if(flag){ const pn=flag.getObjectByName('pennant'); if(pn) pn.rotation.z=Math.sin(T*6)*0.18; }
+
+  animateWater();
+  updateSpray(dt);
+  updateStreaks();
+  updateCamera(dt, dir);
+  updateHUD();
+
+  // combo timer decay
+  if(S.comboTimer>0){ S.comboTimer-=dt; if(S.comboTimer<=0) S.combo=1; }
+  if(popTimer>0){ popTimer-=dt; if(popTimer<=0) trickPop.style.opacity=0; }
+}
+
+function wipeout(){
+  S.vel=Math.min(S.vel,0.6); S.height=0; S.airborne=false; S.vy=0; S.down=true;
+  S.backwind=0; S.stall=0; S.combo=1; S.comboTimer=0; S.switch=false; S.feetSwapped=false; S.maneuver=0;
+  S.roll=0; S.spin=0; S.spinVel=0; S.rollVel=0;
+  trickPop.innerHTML='SPLASH! 💦<div style="font-size:18px;color:#cfe">caduto in acqua — pompa con ↑ per ripartire</div>';
+  trickPop.style.opacity=1; popTimer=1.4; AUD.splash();
+}
+
+function scoreLanding(){
+  // evaluate trick by spin & roll
+  const spins=Math.round(Math.abs(S.spin)/(Math.PI*2)*100)/100;
+  const rolls=Math.round(Math.abs(S.roll)/(Math.PI*2)*100)/100;
+  const fullSpin=Math.floor(Math.abs(S.spin)/ (Math.PI) ); // half-rotations
+  const fullRoll=Math.floor(Math.abs(S.roll)/ (Math.PI) );
+  let pts=0, names=[];
+
+  if(S.air>0.35) { pts+=Math.round(S.air*30); }
+  if(fullSpin>=1){
+    const deg=fullSpin*180;
+    let nm = deg>=720?'720 SPIN':deg>=540?'540':deg>=360?'BACKLOOP / 360':'180';
+    names.push(nm); pts+=fullSpin*90;
+  }
+  if(fullRoll>=1){
+    names.push(S.roll>0?'FRONTFLIP':'BACKFLIP'); pts+=fullRoll*120;
+  }
+  if(keys.ShiftLeft||keys.ShiftRight){ names.push('GRAB'); pts+=Math.round(pts*0.3); }
+
+  // landing quality: penalize if very off-axis on roll
+  const offAxis=Math.abs(((S.roll%(Math.PI*2))+Math.PI*2)%(Math.PI*2));
+  const clean = offAxis<0.5 || Math.abs(offAxis-Math.PI*2)<0.5 || Math.abs(offAxis-Math.PI)<0.6;
+  if(!clean && (fullRoll>=1)){ /* still landed flips count */ }
+
+  if(pts<=0){ S.combo=1; return; }
+  pts=Math.round(pts*S.combo);
+  S.score+=pts;
+  S.combo=Math.min(5,S.combo+1); S.comboTimer=4;
+  const label = names.length? names.join(' + ') : `AIR ${S.air.toFixed(1)}s`;
+  showTrick(label, pts); AUD.score();
+
+  // reset trick accumulators
+  S.spin=0; S.roll=0;
+}
+
+// ---------- Camera ----------
+const camPos=new THREE.Vector3();
+function updateCamera(dt,dir){
+  const target=board.position.clone();
+  let desired;
+  if(camMode===0){ // 3/4 from the LEEWARD side so the rider is in view, wing beyond
+    const side=new THREE.Vector3(dir.z,0,-dir.x);   // +side = windward (wing side)
+    desired=target.clone()
+      .add(dir.clone().multiplyScalar(-5.2))
+      .add(side.multiplyScalar(-5.2));              // camera on leeward side
+    desired.y=Math.max(target.y+2.6, 1.6);
+  } else if(camMode===1){ // side / cinematic
+    const side=new THREE.Vector3(dir.z,0,-dir.x);
+    desired=target.clone().add(side.multiplyScalar(8));
+    desired.y=Math.max(target.y+2.4, 1.6);
+  } else { // far drone
+    desired=target.clone().add(new THREE.Vector3(0,0,18));
+    desired.y=Math.max(target.y+14, 8);
+  }
+  camera.position.lerp(desired, 1-Math.pow(0.001,dt));
+  camera.lookAt(target.x, target.y+0.4, target.z);
+}
+
+// ---------- HUD ----------
+function pointOfSail(){
+  const c=S.cosUp;
+  if(S.inIrons) return 'in irons (no-go)';
+  if(!S.airborne && S.sailLow>0.4 && c<-0.30) return 'poppa — surf 🌊';
+  if(c>0.30) return 'bolina';        // close-hauled
+  if(c>-0.30) return 'traverso';     // beam reach
+  if(c>-0.80) return 'lasco';        // broad reach
+  return 'poppa';                    // running
+}
+function updateHUD(){
+  $('#speedV').innerHTML=(S.vel*1.94).toFixed(1)+'<span class="unit">kn</span>';
+  const ft=$('#flyTag');
+  const flying=S.height>0.08 && !S.airborne;
+  if(S.airborne){ ft.textContent='🚀 IN ARIA '+S.air.toFixed(1)+'s'; ft.className='on'; }
+  else if(flying){ ft.textContent='✈️ FOILING'; ft.className='on'; }
+  else { ft.textContent='SULL\'ACQUA'; ft.className=''; }
+  $('#pointV').textContent=pointOfSail();
+  const sv=$('#surfV');
+  if(!S.airborne && S.surf>0.18){ sv.textContent='🌊 SURF +'+Math.round(S.surf*100)+'%'; sv.style.color='#3ee6a8'; }
+  else if(!S.airborne && S.surf<-0.18){ sv.textContent='↑ risalita'; sv.style.color='#ffb454'; }
+  else { sv.textContent='—'; sv.style.color=''; }
+  $('#airV').textContent=(S.airborne?S.air:0).toFixed(1)+' s';
+  $('#scoreV').textContent=S.score;
+  $('#comboV').textContent='x'+S.combo;
+
+  // ---- wind rose: arrow shows where the wind BLOWS (downwind), in board frame ----
+  const arr=$('#windArrow');
+  if(arr){
+    const ang=Math.atan2(S.windSideDot, S.cosUp)*180/Math.PI + 90; // ➤ default points right
+    arr.style.transform='translate(-50%,-50%) rotate('+ang.toFixed(0)+'deg)';
+  }
+  const deadRun = S.cosUp < -0.80;
+  const tl=$('#tackLbl');
+  const ok=(S.tack===S.correctTack || deadRun) && !S.inIrons;
+  if(tl){ tl.innerHTML='mura '+(S.tack>0?'dx':'sx')+(S.switch?' · <span style="color:#ffb454">SWITCH</span>':''); tl.style.color=ok?'#3ee6a8':'#ff7a5c'; }
+  // ---- warning: only no-go (pinching) or true backwind (wrong tack) ----
+  const warn=$('#warn');
+  if(warn){
+    const wrong = !deadRun && !S.inIrons && (S.tack!==S.correctTack);
+    const bad=!S.airborne && (S.inIrons || (wrong && S.backwind>0.2));
+    warn.style.display=bad?'block':'none';
+    if(bad) warn.textContent = S.inIrons
+      ? '⚠ TROPPO AL VENTO — poggia (vira) per ripartire'
+      : '⚠ CONTROVENTO — premi F per girare la vela';
+  }
+}
+
+</script>
+</body>
+</html>
