@@ -83,8 +83,10 @@
   #windRose .dial{position:relative;width:62px;height:62px;margin:3px auto 1px;border-radius:50%;
     border:2px solid var(--line);background:radial-gradient(circle at 50% 40%,#13344f,#0c2233)}
   #windRose .nose{position:absolute;top:3px;left:50%;transform:translateX(-50%);font-size:11px;color:#7fa8c9}
-  #windArrow{position:absolute;top:50%;left:50%;width:0;height:0;font-size:26px;line-height:0;
-    transform:translate(-50%,-50%) rotate(0deg);color:var(--accent2);transition:transform .12s linear}
+  #windArrow{position:absolute;top:50%;left:50%;width:44px;height:44px;
+    transform:translate(-50%,-50%) rotate(0deg);transition:transform .12s linear;
+    filter:drop-shadow(0 2px 6px rgba(0,0,0,.55))}
+  #windFromLbl{font-size:12px;font-weight:800;margin-top:3px;color:var(--accent2);letter-spacing:.3px}
   #tackLbl{font-size:11px;font-weight:700;margin-top:1px}
   #warn{position:fixed;top:96px;left:50%;transform:translateX(-50%);z-index:7;display:none;
     background:linear-gradient(90deg,#b53b2f,#e0563f);color:#fff;font-weight:800;letter-spacing:.4px;
@@ -108,8 +110,17 @@
   </div>
 </div>
 <div id="windRose">
-  <div class="lbl">VENTO</div>
-  <div class="dial"><div class="nose">▲</div><div id="windArrow">➤</div></div>
+  <div class="lbl">VENTO soffia →</div>
+  <div class="dial">
+    <div class="nose">▲ prua</div>
+    <svg id="windArrow" viewBox="0 0 100 100" aria-label="direzione vento">
+      <g fill="#ffb020" stroke="#ffb020" stroke-linejoin="round" stroke-width="3">
+        <rect x="42" y="40" width="16" height="50" rx="5"/>
+        <polygon points="50,6 22,48 78,48"/>
+      </g>
+    </svg>
+  </div>
+  <div id="windFromLbl">—</div>
   <div id="tackLbl">—</div>
 </div>
 <div id="warn">⚠ CONTROVENTO — premi F per girare la vela</div>
@@ -211,7 +222,7 @@
       In aria: <kbd>A</kbd><kbd>D</kbd> spin (rotazione) &nbsp; <kbd>Q</kbd><kbd>E</kbd> roll/backflip &nbsp; <kbd>Shift</kbd> grab &nbsp;
       <kbd>C</kbd> camera &nbsp; <kbd>R</kbd> reset &nbsp; <kbd>M</kbd> audio on/off<br>
       <span style="color:var(--accent2)">In una virata/strambata (F) la <b>vela gira sopra la testa</b> e passa dall'altro lato: i piedi restano fermi, quindi ti ritrovi in <b>switch</b>. Premi <b>S</b> per <b>scambiare i piedi</b> (davanti↔dietro) e raddrizzarti. A tutta velocità (fino a 30 kn) i salti diventano più alti.</span><br>
-      <span style="color:#ffd23f">🏁 <b>Race</b> — percorso World Sailing <b>bolina/poppa</b> (windward-leeward + offset): segui la <b>freccia</b>, il <b>fascio azzurro</b> e l'<b>anello giallo</b> che gira nel verso giusto. Boe in ordine <b>1 → 2 → 3</b>, si girano <b>a SINISTRA</b> (port, antiorario), poi tagli la <b>linea verde</b>. 2 giri a cronometro, <kbd>R</kbd> per ripartire. La prima boa è di <b>bolina</b> (controvento): devi bordeggiare. Le <b>striature sull'acqua</b> scorrono nel verso del vento (sottovento).</span>
+      <span style="color:#ffd23f">🏁 <b>Race</b> — percorso World Sailing <b>bolina/poppa</b> (windward-leeward + offset): segui la <b>freccia</b>, il <b>fascio azzurro</b> e l'<b>anello giallo</b> che gira nel verso giusto. Ogni giro è <b>1 Bolina → 2 Offset → 3 Poppa</b>, tutte si girano <b>a SINISTRA</b> (port, antiorario). Ripeti il circuito per <b>2 giri</b> e <b>solo alla fine</b> tagli la <b>linea verde d'arrivo</b> (nei giri intermedi NON passi dal traguardo: giri la poppa e risali in bolina). La boa 1 è di <b>bolina</b> (controvento): devi bordeggiare. <kbd>R</kbd> per ripartire. Le <b>striature sull'acqua</b> + la <b>grande freccia azzurra</b> sotto di te mostrano sempre dove soffia il vento.</span>
     </div>
     <div class="roadmap">
       <b style="color:var(--accent)">Roadmap full game</b> — questo è il prototipo del core gameplay (fisica foil, freestyle, gear).
@@ -301,7 +312,7 @@ const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,0.1,2000);
 let sun, hemi, water, waterGeo, foam, board, rig, rider, wingMesh, bodyParts;
 let spray, sprayData, sprayHead=0; const SPRAY_N=300;
 let streaks, streakData=null; const STREAK_N=240, STREAK_R=44;
-let windViz=null, windVizData=null; const WIND_N=150, WIND_R=64;
+let windViz=null, windVizData=null, windArrowFloor=null; const WIND_N=150, WIND_R=64;
 let wake=null, wakePts=[]; const WAKE_MAX=48, WAKE_SPACING=0.7, WAKE_MAXAGE=1.7, WAKE_KN=15;
 let spot=SPOTS.sardegna;
 const WATER_SEG=130, WATER_SIZE=600;
@@ -976,6 +987,16 @@ function buildWindViz(){
     windVizData.push({x:S.pos.x+(Math.random()-0.5)*WIND_R*2, z:S.pos.z+(Math.random()-0.5)*WIND_R*2, len:1.4+Math.random()*2.4});
   const m=new THREE.LineBasicMaterial({color:0xcfeeff,transparent:true,opacity:0.0,depthWrite:false});
   windViz=new THREE.LineSegments(g,m); windViz.frustumCulled=false; scene.add(windViz);
+  // Big solid arrow lying on the water, kept under the rider → wind direction visible AT ALL TIMES.
+  const ar=new THREE.Group();
+  const amat=new THREE.MeshBasicMaterial({color:0x37e0ff,transparent:true,opacity:0.6,depthWrite:false,fog:false,side:THREE.DoubleSide});
+  const omat=new THREE.MeshBasicMaterial({color:0x0a2740,transparent:true,opacity:0.5,depthWrite:false,fog:false,side:THREE.DoubleSide});
+  const shaft=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.05,7.2),amat); shaft.position.z=-0.4; ar.add(shaft);
+  const shaftO=new THREE.Mesh(new THREE.BoxGeometry(1.3,0.04,7.8),omat); shaftO.position.set(0,-0.02,-0.4); ar.add(shaftO);
+  const head=new THREE.Mesh(new THREE.ConeGeometry(1.9,3.0,4),amat); head.rotation.x=Math.PI/2; head.rotation.z=Math.PI/4; head.position.z=4.7; ar.add(head);
+  const headO=new THREE.Mesh(new THREE.ConeGeometry(2.3,3.4,4),omat); headO.rotation.x=Math.PI/2; headO.rotation.z=Math.PI/4; headO.position.set(0,-0.02,4.7); ar.add(headO);
+  const lab=makeLabel('VENTO','#0a3a55'); lab.scale.set(3.6,3.6,1); lab.position.set(0,2.6,-4.8); ar.add(lab);
+  ar.renderOrder=3; windArrowFloor=ar; scene.add(ar);
 }
 function updateWindViz(dt){
   if(!windViz) return;
@@ -998,6 +1019,12 @@ function updateWindViz(dt){
   }
   pos.needsUpdate=true;
   windViz.material.opacity = 0.22 + Math.min(0.30,(cfg.wind/38)*0.34);
+  if(windArrowFloor){
+    // keep the big arrow a few metres up-wind of the rider, lying on the water, pointing downwind
+    const ox=S.pos.x - windToward.x*3, oz=S.pos.z - windToward.z*3;
+    windArrowFloor.position.set(ox, waveH(ox,oz)+0.18, oz);
+    windArrowFloor.rotation.y=Math.atan2(windToward.x, windToward.z);
+  }
 }
 
 // Foam wake ribbon trailing the foil — only renders from 15 kn up, spreads & fades behind.
@@ -1052,10 +1079,12 @@ const RACE = {
     {x:-46, z:0,   name:'Arrivo', side:'line', kind:'finish'}
   ],
   next:0, lap:0, laps:2, t:0, lapStartT:0, running:false, finished:false,
-  countdown:0, best:null, lastLap:null, R:7, lineR:12,
+  countdown:0, best:null, lastLap:null, R:7, lineR:12, seq:[],
   reset(){
     this.next=0; this.lap=0; this.t=0; this.lapStartT=0; this.running=false;
     this.finished=false; this.countdown=3.2; this.lastLap=null;
+    // Sequenza autentica: [Bolina→Offset→Poppa] × giri, poi UNA SOLA volta l'Arrivo.
+    this.seq=[]; for(let l=0;l<this.laps;l++) this.seq.push(0,1,2); this.seq.push(3);
     S.pos.set(-46,0,0); S.heading=Math.PI/2; S.vel=3;   // on the start line, pointing upwind (+X)
     if(typeof wakePts!=='undefined') wakePts.length=0;
     rcBig.style.display='block'; rcBig.textContent='3';
@@ -1101,7 +1130,7 @@ const RACE = {
     const lab=makeLabel('🏁','#0a2740'); lab.position.set(0,9.8,0); g.add(lab);
     return g;
   },
-  cur(){ return this.def[this.next]; },
+  cur(){ return this.def[this.seq[this.next]]; },
   fmt(s){ if(s==null) return '—'; const m=Math.floor(s/60), r=s-m*60;
     return m>0 ? m+':'+r.toFixed(2).padStart(5,'0') : r.toFixed(2)+'s'; },
   flash(txt){ if(!txt) return; rcBig.textContent=txt; rcBig.style.display='block';
@@ -1122,7 +1151,7 @@ const RACE = {
       const isLine=(m.kind==='finish'); this.ring.visible=!isLine;
       if(!isLine){ this.ring.position.set(m.x,0.3,m.z); this.ring.rotation.y += dt*1.4*(m.side==='port'?1:-1); }
     }
-    this.marks.forEach((mk,i)=>{ if(mk.obj){ const active=(i===this.next);
+    this.marks.forEach((mk,i)=>{ if(mk.obj){ const active=(i===this.seq[this.next]);
       mk.obj.scale.setScalar(active?1+0.12*Math.sin(T*6):1);
       if(mk.obj.userData.body) mk.obj.userData.body.material.emissiveIntensity=active?1.0:0.25; } });
     if(this.running && !this.finished){
@@ -1131,11 +1160,14 @@ const RACE = {
       if(d<r){
         if(AUD.score) AUD.score();
         if(m.kind==='finish'){
+          this.finish();
+        } else if(m.kind==='leeward'){
+          // completed one full lap (windward+offset+leeward): record lap time, head back up
           const lapTime=this.t-this.lapStartT; this.lastLap=lapTime;
           if(this.best===null||lapTime<this.best) this.best=lapTime;
-          this.lap++;
-          if(this.lap>=this.laps){ this.finish(); }
-          else { this.next=0; this.lapStartT=this.t; this.flash('GIRO '+(this.lap+1)+'/'+this.laps+' · '+this.fmt(lapTime)); }
+          this.lapStartT=this.t; this.lap++; this.next++;
+          if(this.lap>=this.laps) this.flash('ULTIMO TRATTO → ARRIVO! · '+this.fmt(lapTime));
+          else this.flash('GIRO '+(this.lap+1)+'/'+this.laps+' · '+this.fmt(lapTime));
         } else { this.next++; this.flash(m.name+' ✓'); }
       }
     }
@@ -1144,7 +1176,7 @@ const RACE = {
   hud(){
     const m=this.cur();
     if(m.kind==='finish'){ rcBuoy.textContent='🏁 Arrivo'; rcSide.textContent='taglia la linea verde'; rcSide.style.color='#2effa0'; }
-    else { rcBuoy.textContent=(this.next+1)+'/'+(this.def.length-1)+' · '+m.name;
+    else { rcBuoy.textContent=((this.next%3)+1)+'/3 · '+m.name;
       rcSide.innerHTML=(m.side==='port')?'↺ a SINISTRA (port)':'↻ a DESTRA (stbd)';
       rcSide.style.color=(m.side==='port')?'#ffd23f':'#37e0ff'; }
     rcLap.textContent=Math.min(this.lap+1,this.laps)+'/'+this.laps;
@@ -1631,11 +1663,17 @@ function updateHUD(){
   $('#scoreV').textContent=S.score;
   $('#comboV').textContent='x'+S.combo;
 
-  // ---- wind rose: arrow shows where the wind BLOWS (downwind), in board frame ----
+  // ---- wind rose: arrow points where the wind BLOWS (downwind), in board frame; up = prua ----
   const arr=$('#windArrow');
   if(arr){
-    const ang=Math.atan2(S.windSideDot, S.cosUp)*180/Math.PI + 90; // ➤ default points right
+    const ang=Math.atan2(-S.windSideDot, -S.cosUp)*180/Math.PI;
     arr.style.transform='translate(-50%,-50%) rotate('+ang.toFixed(0)+'deg)';
+  }
+  const wf=$('#windFromLbl');
+  if(wf){
+    const a=Math.atan2(S.windSideDot, S.cosUp)*180/Math.PI; // sorgente: 0=prua,+90=dritta,180=poppa,-90=sx
+    const dirs=['da PRUA','da PRUA-DRITTA','da DRITTA','da POPPA-DRITTA','da POPPA','da POPPA-SX','da SINISTRA','da PRUA-SX'];
+    wf.textContent='soffia '+dirs[((Math.round(a/45)%8)+8)%8];
   }
   const deadRun = S.cosUp < -0.80;
   const tl=$('#tackLbl');
