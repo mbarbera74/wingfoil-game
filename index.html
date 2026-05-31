@@ -554,7 +554,7 @@ function buildBoard(){
   const geo=new THREE.ExtrudeGeometry(boardOutline(1),
     {depth:0.12,bevelEnabled:true,bevelThickness:0.05,bevelSize:0.055,bevelSegments:5,steps:1,curveSegments:24});
   geo.rotateX(-Math.PI/2); geo.translate(0,-0.06,0); rock(geo);
-  const board=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x1f63d6,roughness:0.45,metalness:0.05}));
+  const board=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x4fc1e9,roughness:0.45,metalness:0.05}));
   board.castShadow=true; board.receiveShadow=true; g.add(board);
   // deck traction pad
   const pgeo=new THREE.ExtrudeGeometry(boardOutline(0.82),{depth:0.02,bevelEnabled:false,curveSegments:24});
@@ -592,7 +592,8 @@ function buildFoil(mastH){
   const fuse=new THREE.Mesh(new THREE.CylinderGeometry(0.034,0.024,1.0,12),carbon);
   fuse.rotation.x=Math.PI/2; fuse.position.set(0,-mastH-0.02,0.02); g.add(fuse);
   // front wing (forward), curved & swept
-  const fw=buildSweptWing({span:0.52+cfg.wing/2400*0.9,chordRoot:0.22,chordTip:0.07,thick:0.42,sweep:-0.18,dihedral:0.16,color:wingCol});
+  // front wing (forward): wide, high-aspect & nearly flat (open) — like a modern surf-foil front
+  const fw=buildSweptWing({span:0.82+cfg.wing/2400*1.05,chordRoot:0.205,chordTip:0.055,thick:0.36,sweep:-0.12,dihedral:0.05,color:wingCol});
   fw.position.set(0,-mastH-0.02,0.36); g.add(fw);
   // rear stabilizer
   const rw=buildSweptWing({span:0.34,chordRoot:0.11,chordTip:0.05,thick:0.42,sweep:-0.06,dihedral:0.06,color:wingCol});
