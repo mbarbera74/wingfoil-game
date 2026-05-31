@@ -32,6 +32,15 @@
     transform:translateX(-50%)}
   #scoreWrap{position:fixed;top:14px;right:14px;z-index:5;text-align:right;pointer-events:none}
   #scoreWrap .big{color:var(--accent2)}
+  /* ---- Race HUD ---- */
+  #raceHud{position:fixed;top:14px;right:14px;z-index:6;display:none;pointer-events:none}
+  #raceHud .row b{color:#ffd23f}
+  #rcArrowWrap{display:flex;align-items:center;justify-content:center;margin-top:8px}
+  #rcArrow{font-size:40px;line-height:1;color:#37e0ff;transition:transform .1s linear;
+    text-shadow:0 2px 10px rgba(0,0,0,.5)}
+  #rcBig{position:fixed;top:28%;left:50%;transform:translateX(-50%);z-index:8;display:none;
+    font-size:60px;font-weight:900;color:#ffd23f;text-align:center;white-space:nowrap;
+    text-shadow:0 6px 26px rgba(0,0,0,.7);pointer-events:none}
 
   /* ---------- Menu ---------- */
   #menu{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
@@ -112,6 +121,18 @@
   </div>
 </div>
 <div id="trickPop"></div>
+<div id="raceHud">
+  <div class="card">
+    <div class="row"><span>Boa</span><b id="rcBuoy">1/3</b></div>
+    <div class="row"><span>Gira</span><b id="rcSide">↺ a SINISTRA</b></div>
+    <div class="row"><span>Giro</span><b id="rcLap">1/2</b></div>
+    <div class="row"><span>Tempo</span><b id="rcTime">0.00s</b></div>
+    <div class="row"><span>Best lap</span><b id="rcBest">—</b></div>
+    <div class="row"><span>Prossima</span><b id="rcDist">— m</b></div>
+    <div id="rcArrowWrap"><div id="rcArrow">▲</div></div>
+  </div>
+</div>
+<div id="rcBig"></div>
 <button id="backBtn">‹ Menu</button>
 
 <!-- Menu -->
@@ -121,6 +142,14 @@
     <div class="sub">Scegli spot, vento e attrezzatura. La fisica del foil reagisce davvero alle tue scelte.</div>
 
     <div class="grid">
+      <div class="field">
+        <h3>Modalità</h3>
+        <div class="opts" id="modeOpts">
+          <div class="opt sel" data-mode="freeride">Freeride<small>libero / freestyle</small></div>
+          <div class="opt" data-mode="race">Race<small>gara a boe + cronometro</small></div>
+        </div>
+        <div class="advice" id="modeAdvice" style="margin-top:8px"></div>
+      </div>
       <div class="field">
         <h3>Spot</h3>
         <div class="opts" id="spotOpts">
@@ -181,7 +210,8 @@
       <kbd>F</kbd> vira / stramba (gira la vela sopra la testa) &nbsp; <kbd>S</kbd> switch piedi (raddrizza) &nbsp; <kbd>↓</kbd> abbassa la vela (surf) &nbsp; <kbd>Spazio</kbd> pop / salto<br>
       In aria: <kbd>A</kbd><kbd>D</kbd> spin (rotazione) &nbsp; <kbd>Q</kbd><kbd>E</kbd> roll/backflip &nbsp; <kbd>Shift</kbd> grab &nbsp;
       <kbd>C</kbd> camera &nbsp; <kbd>R</kbd> reset &nbsp; <kbd>M</kbd> audio on/off<br>
-      <span style="color:var(--accent2)">In una virata/strambata (F) la <b>vela gira sopra la testa</b> e passa dall'altro lato: i piedi restano fermi, quindi ti ritrovi in <b>switch</b>. Premi <b>S</b> per <b>scambiare i piedi</b> (davanti↔dietro) e raddrizzarti. A tutta velocità (fino a 30 kn) i salti diventano più alti.</span>
+      <span style="color:var(--accent2)">In una virata/strambata (F) la <b>vela gira sopra la testa</b> e passa dall'altro lato: i piedi restano fermi, quindi ti ritrovi in <b>switch</b>. Premi <b>S</b> per <b>scambiare i piedi</b> (davanti↔dietro) e raddrizzarti. A tutta velocità (fino a 30 kn) i salti diventano più alti.</span><br>
+      <span style="color:#ffd23f">🏁 <b>Race</b> — percorso World Sailing <b>bolina/poppa</b> (windward-leeward + offset): segui la <b>freccia</b>, il <b>fascio azzurro</b> e l'<b>anello giallo</b> che gira nel verso giusto. Boe in ordine <b>1 → 2 → 3</b>, si girano <b>a SINISTRA</b> (port, antiorario), poi tagli la <b>linea verde</b>. 2 giri a cronometro, <kbd>R</kbd> per ripartire. La prima boa è di <b>bolina</b> (controvento): devi bordeggiare. Le <b>striature sull'acqua</b> scorrono nel verso del vento (sottovento).</span>
     </div>
     <div class="roadmap">
       <b style="color:var(--accent)">Roadmap full game</b> — questo è il prototipo del core gameplay (fisica foil, freestyle, gear).
@@ -208,12 +238,14 @@ const SPOTS = {
   hawaii:      { name:'Hawaii',       sky:0x8fd0ef, water:0x12a6c2, deep:0x086a82, waveAmp:0.22, waveLen:14, swellAmp:1.15, swellLen:12, swellDir:0.40, swellSpeed:0.70, sun:0xfff6dc, fog:0xbce8ea },
 };
 
-const cfg = { spot:'sardegna', wind:18, sail:5, wing:1500, mast:85 };
+const cfg = { mode:'freeride', spot:'sardegna', wind:18, sail:5, wing:1500, mast:85 };
 
 // ---------- DOM ----------
 const $ = s=>document.querySelector(s);
 const menu=$('#menu'), hud=$('#hud'), scoreWrap=$('#scoreWrap'), backBtn=$('#backBtn');
 const trickPop=$('#trickPop');
+const raceHud=$('#raceHud'), rcBig=$('#rcBig');
+const rcBuoy=$('#rcBuoy'), rcSide=$('#rcSide'), rcLap=$('#rcLap'), rcTime=$('#rcTime'), rcBest=$('#rcBest'), rcDist=$('#rcDist'), rcArrow=$('#rcArrow');
 
 function selOpts(container, attr, key){
   container.querySelectorAll('.opt').forEach(o=>{
@@ -225,6 +257,7 @@ function selOpts(container, attr, key){
     };
   });
 }
+selOpts($('#modeOpts'),'mode','mode');
 selOpts($('#spotOpts'),'spot','spot');
 selOpts($('#sailOpts'),'sail','sail');
 selOpts($('#wingOpts'),'wing','wing');
@@ -234,6 +267,9 @@ const windSlider=$('#windSlider');
 windSlider.oninput=()=>{ cfg.wind=+windSlider.value; $('#windLabel').textContent=cfg.wind; updateAdvice(); };
 
 function updateAdvice(){
+  const ma=$('#modeAdvice');
+  if(ma){ if(cfg.mode==='race'){ ma.textContent='🏁 Gara: percorso bolina/poppa (3 boe + offset), si gira a sinistra, 2 giri a cronometro.'; ma.className='advice ok'; }
+    else { ma.textContent='🏄 Giro libero: nessun percorso, solo onde, salti e freestyle.'; ma.className='advice'; } }
   // recommended sail ~ powered window
   const recSail = Math.max(3, Math.min(7, Math.round((28 - cfg.wind*0.55)*2)/2 + 1.5));
   const a=$('#windAdvice');
@@ -265,6 +301,8 @@ const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,0.1,2000);
 let sun, hemi, water, waterGeo, foam, board, rig, rider, wingMesh, bodyParts;
 let spray, sprayData, sprayHead=0; const SPRAY_N=300;
 let streaks, streakData=null; const STREAK_N=240, STREAK_R=44;
+let windViz=null, windVizData=null; const WIND_N=150, WIND_R=64;
+let wake=null, wakePts=[]; const WAKE_MAX=48, WAKE_SPACING=0.7, WAKE_MAXAGE=1.7, WAKE_KN=15;
 let spot=SPOTS.sardegna;
 const WATER_SEG=130, WATER_SIZE=600;
 
@@ -323,6 +361,8 @@ function buildWorld(){
   // spray / wake particles (world-anchored so they rush past = sense of speed)
   buildSpray();
   buildStreaks();
+  buildWindViz();
+  buildWake();
 }
 
 // World-anchored foam flecks scattered on the surface around the rider. They sit STILL in
@@ -439,6 +479,10 @@ function buildScenery(){
   flag.position.set(18,0,-8);
   flag.rotation.y=Math.atan2(windToward.x, windToward.z);
   scene.add(flag);
+
+  // race course (buoys + start gate) only in race mode
+  RACE.on = (cfg.mode==='race');
+  if(RACE.on) RACE.build();
 }
 
 /* ---------- realistic geometry builders ---------- */
@@ -774,7 +818,7 @@ const keys={};
 let fHeld=false, sHeld=false;
 addEventListener('keydown',e=>{
   if(e.code==='KeyC') camMode=(camMode+1)%3;
-  if(e.code==='KeyR') S.reset();
+  if(e.code==='KeyR'){ S.reset(); if(RACE.on) RACE.reset(); }
   if(e.code==='KeyM'){ const m=AUD.toggleMute(); const w=$('#warn'); if(w){ w.style.display='block'; w.textContent=m?'🔇 Audio muto (M)':'🔊 Audio attivo (M)'; setTimeout(()=>{ if(playing) w.style.display='none'; },1200); } }
   if(e.code==='KeyF' && !fHeld){ fHeld=true;
     if(playing && !S.airborne){
@@ -909,6 +953,209 @@ function deriveGear(){
   W.windMS=windMS;
 }
 
+// ---------- Visual helpers: number labels, wind streaks on water, foil wake ----------
+function makeLabel(text,bg){
+  const c=document.createElement('canvas'); c.width=c.height=128;
+  const x=c.getContext('2d');
+  x.fillStyle=bg||'#0a2740'; x.beginPath(); x.arc(64,64,58,0,Math.PI*2); x.fill();
+  x.lineWidth=8; x.strokeStyle='#ffffff'; x.beginPath(); x.arc(64,64,58,0,Math.PI*2); x.stroke();
+  x.fillStyle='#ffffff'; x.font='bold 70px "Segoe UI",Arial'; x.textAlign='center'; x.textBaseline='middle';
+  x.fillText(text,64,70);
+  const tex=new THREE.CanvasTexture(c); tex.anisotropy=4;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false}));
+  sp.scale.set(4.2,4.2,1); return sp;
+}
+
+// Drifting dashes lying on the water, streaming in the wind direction (downwind).
+// This is the *visual* read of where the wind blows — like cat's paws / gust lines.
+function buildWindViz(){
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(WIND_N*2*3),3));
+  windVizData=[];
+  for(let i=0;i<WIND_N;i++)
+    windVizData.push({x:S.pos.x+(Math.random()-0.5)*WIND_R*2, z:S.pos.z+(Math.random()-0.5)*WIND_R*2, len:1.4+Math.random()*2.4});
+  const m=new THREE.LineBasicMaterial({color:0xcfeeff,transparent:true,opacity:0.0,depthWrite:false});
+  windViz=new THREE.LineSegments(g,m); windViz.frustumCulled=false; scene.add(windViz);
+}
+function updateWindViz(dt){
+  if(!windViz) return;
+  const tx=windToward.x, tz=windToward.z;     // unit downwind
+  const px=-tz, pz=tx;                         // across-wind
+  const pos=windViz.geometry.attributes.position;
+  const drift=9*dt;
+  for(let i=0;i<WIND_N;i++){
+    const d=windVizData[i];
+    d.x+=tx*drift; d.z+=tz*drift;
+    const dx=d.x-S.pos.x, dz=d.z-S.pos.z;
+    if(dx*dx+dz*dz>WIND_R*WIND_R){
+      const lat=(Math.random()-0.5)*WIND_R*2.2;
+      d.x=S.pos.x - tx*WIND_R*0.95 + px*lat;   // respawn on the upwind edge
+      d.z=S.pos.z - tz*WIND_R*0.95 + pz*lat;
+    }
+    pos.setXYZ(i*2,   d.x, waveH(d.x,d.z)+0.12, d.z);
+    const ex=d.x+tx*d.len, ez=d.z+tz*d.len;
+    pos.setXYZ(i*2+1, ex, waveH(ex,ez)+0.12, ez);
+  }
+  pos.needsUpdate=true;
+  windViz.material.opacity = 0.22 + Math.min(0.30,(cfg.wind/38)*0.34);
+}
+
+// Foam wake ribbon trailing the foil — only renders from 15 kn up, spreads & fades behind.
+function buildWake(){
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(WAKE_MAX*2*3),3));
+  g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(WAKE_MAX*2*3),3));
+  const idx=[]; for(let i=0;i<WAKE_MAX-1;i++){ const a=i*2; idx.push(a,a+1,a+2, a+2,a+1,a+3); }
+  g.setIndex(idx); g.setDrawRange(0,0);
+  const m=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,opacity:0.85,depthWrite:false,side:THREE.DoubleSide});
+  wake=new THREE.Mesh(g,m); wake.frustumCulled=false; wake.visible=false; scene.add(wake); wakePts=[];
+}
+function updateWake(dt){
+  if(!wake) return;
+  for(const p of wakePts) p.age+=dt;
+  while(wakePts.length && wakePts[wakePts.length-1].age>WAKE_MAXAGE) wakePts.pop();
+  const kn=(S.vel||0)*1.94;
+  if(kn>=WAKE_KN && !S.airborne){
+    const head=wakePts[0];
+    if(!head || Math.hypot(S.pos.x-head.x,S.pos.z-head.z)>=WAKE_SPACING){
+      wakePts.unshift({x:S.pos.x,z:S.pos.z,age:0}); if(wakePts.length>WAKE_MAX) wakePts.pop();
+    }
+  }
+  const n=wakePts.length;
+  if(n<2){ wake.visible=false; return; }
+  wake.visible=true;
+  const pos=wake.geometry.attributes.position, col=wake.geometry.attributes.color;
+  const wc=new THREE.Color(spot.water), white=new THREE.Color(0xffffff), tmp=new THREE.Color();
+  for(let j=0;j<n;j++){
+    const p=wakePts[j], a=Math.min(1,p.age/WAKE_MAXAGE);
+    const pa=wakePts[Math.max(0,j-1)], pb=wakePts[Math.min(n-1,j+1)];
+    let dx=pa.x-pb.x, dz=pa.z-pb.z; const L=Math.hypot(dx,dz)||1; dx/=L; dz/=L;
+    const px=-dz, pz=dx, w=0.30+a*2.2, y=waveH(p.x,p.z)+0.06;
+    pos.setXYZ(j*2,   p.x+px*w, y, p.z+pz*w);
+    pos.setXYZ(j*2+1, p.x-px*w, y, p.z-pz*w);
+    tmp.copy(white).lerp(wc, Math.pow(a,0.7));
+    col.setXYZ(j*2, tmp.r,tmp.g,tmp.b); col.setXYZ(j*2+1, tmp.r,tmp.g,tmp.b);
+  }
+  wake.geometry.setDrawRange(0,(n-1)*6);
+  pos.needsUpdate=true; col.needsUpdate=true;
+}
+
+// ---------- Race mode (gara a boe) ----------
+const RACE = {
+  on:false, group:null, marks:[], beacon:null, ring:null,
+  // Windward-Leeward + offset (standard World Sailing). Wind FROM +X → upwind=+X, downwind=−X.
+  // All marks rounded to PORT (a sinistra / antiorario) — the racing default.
+  def:[
+    {x:42,  z:0,   name:'Bolina', side:'port', kind:'windward'},
+    {x:35,  z:13,  name:'Offset', side:'port', kind:'offset'},
+    {x:-30, z:13,  name:'Poppa',  side:'port', kind:'leeward'},
+    {x:-46, z:0,   name:'Arrivo', side:'line', kind:'finish'}
+  ],
+  next:0, lap:0, laps:2, t:0, lapStartT:0, running:false, finished:false,
+  countdown:0, best:null, lastLap:null, R:7, lineR:12,
+  reset(){
+    this.next=0; this.lap=0; this.t=0; this.lapStartT=0; this.running=false;
+    this.finished=false; this.countdown=3.2; this.lastLap=null;
+    S.pos.set(-46,0,0); S.heading=Math.PI/2; S.vel=3;   // on the start line, pointing upwind (+X)
+    if(typeof wakePts!=='undefined') wakePts.length=0;
+    rcBig.style.display='block'; rcBig.textContent='3';
+  },
+  build(){
+    this.group=new THREE.Group(); scene.add(this.group); this.marks=[];
+    this.def.forEach((m,i)=>{
+      if(m.kind==='finish'){ const g=this.makeGate(m); this.group.add(g); this.marks.push({def:m,obj:null}); }
+      else { const o=this.makeBuoy(i+1,m); o.position.set(m.x,0,m.z); this.group.add(o); this.marks.push({def:m,obj:o}); }
+    });
+    const bm=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,46,16,1,true),
+      new THREE.MeshBasicMaterial({color:0x37e0ff,transparent:true,opacity:0.16,side:THREE.DoubleSide,depthWrite:false,fog:false}));
+    bm.position.y=23; this.beacon=bm; this.group.add(bm);
+    // rounding indicator: a flat arc + arrowhead that sweeps in the rounding direction
+    const rg=new THREE.Group();
+    const tmat=new THREE.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:0.85,depthWrite:false,side:THREE.DoubleSide});
+    const tor=new THREE.Mesh(new THREE.TorusGeometry(5.0,0.18,8,44,Math.PI*1.5),tmat); tor.rotation.x=-Math.PI/2; rg.add(tor);
+    const head=new THREE.Mesh(new THREE.ConeGeometry(0.7,1.7,12),tmat); head.position.set(5.0,0.0,0); head.rotation.x=Math.PI/2; rg.add(head);
+    rg.position.y=0.3; this.ring=rg; this.group.add(rg);
+  },
+  makeBuoy(num,m){
+    const g=new THREE.Group();
+    const col = m.kind==='windward'?0xff3b30 : m.kind==='offset'?0xff8a1f : 0xffb000;
+    const body=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.9,2.6,16),
+      new THREE.MeshStandardMaterial({color:col,roughness:0.5,emissive:col,emissiveIntensity:0.25}));
+    body.position.y=1.3; g.add(body);
+    const top=new THREE.Mesh(new THREE.ConeGeometry(1.05,1.7,16),
+      new THREE.MeshStandardMaterial({color:0xffe08a,roughness:0.5})); top.position.y=3.3; g.add(top);
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,4.6,8),
+      new THREE.MeshStandardMaterial({color:0xffffff})); pole.position.y=5.6; g.add(pole);
+    const lab=makeLabel(String(num),'#0a2740'); lab.position.set(0,7.7,0); g.add(lab);
+    g.userData.body=body; return g;
+  },
+  makeGate(m){
+    const g=new THREE.Group(); g.position.set(m.x,0,m.z);
+    const mat=new THREE.MeshStandardMaterial({color:0x18d27a,roughness:0.5,emissive:0x064a2a,emissiveIntensity:0.6});
+    for(const sz of [-11,11]){
+      const p=new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.6,8,12),mat); p.position.set(0,4,sz); g.add(p);
+      const fl=new THREE.Mesh(new THREE.SphereGeometry(0.95,12,10),
+        new THREE.MeshStandardMaterial({color:0x2effa0,emissive:0x0a7a48,emissiveIntensity:0.9}));
+      fl.position.set(0,8.4,sz); g.add(fl);
+    }
+    const lab=makeLabel('🏁','#0a2740'); lab.position.set(0,9.8,0); g.add(lab);
+    return g;
+  },
+  cur(){ return this.def[this.next]; },
+  fmt(s){ if(s==null) return '—'; const m=Math.floor(s/60), r=s-m*60;
+    return m>0 ? m+':'+r.toFixed(2).padStart(5,'0') : r.toFixed(2)+'s'; },
+  flash(txt){ if(!txt) return; rcBig.textContent=txt; rcBig.style.display='block';
+    clearTimeout(this._ft); this._ft=setTimeout(()=>{ if(this.on&&!this.finished&&this.countdown<=0) rcBig.style.display='none'; },800); },
+  finish(){ this.finished=true; this.running=false; rcBig.style.display='block';
+    rcBig.innerHTML='🏁 FINISH<div style="font-size:22px;color:#9ff3ec;margin-top:6px">tempo '+this.fmt(this.t)+' · best lap '+this.fmt(this.best)+'</div><div style="font-size:15px;color:#cfe;margin-top:4px">premi R per ripartire</div>'; },
+  update(dt){
+    if(!this.on) return;
+    if(this.countdown>0){
+      this.countdown-=dt; const n=Math.ceil(this.countdown);
+      if(this.countdown<=0){ this.running=true; this.t=0; this.lapStartT=0; this.flash('VIA! 🟢'); }
+      else { rcBig.textContent=String(n); rcBig.style.display='block'; }
+    }
+    if(this.running && !this.finished) this.t+=dt;
+    const m=this.cur();
+    if(this.beacon){ this.beacon.position.set(m.x,23,m.z); this.beacon.material.opacity=0.12+0.07*Math.sin(T*4); }
+    if(this.ring){
+      const isLine=(m.kind==='finish'); this.ring.visible=!isLine;
+      if(!isLine){ this.ring.position.set(m.x,0.3,m.z); this.ring.rotation.y += dt*1.4*(m.side==='port'?1:-1); }
+    }
+    this.marks.forEach((mk,i)=>{ if(mk.obj){ const active=(i===this.next);
+      mk.obj.scale.setScalar(active?1+0.12*Math.sin(T*6):1);
+      if(mk.obj.userData.body) mk.obj.userData.body.material.emissiveIntensity=active?1.0:0.25; } });
+    if(this.running && !this.finished){
+      const d=Math.hypot(S.pos.x-m.x, S.pos.z-m.z);
+      const r=(m.kind==='finish')?this.lineR:this.R;
+      if(d<r){
+        if(AUD.score) AUD.score();
+        if(m.kind==='finish'){
+          const lapTime=this.t-this.lapStartT; this.lastLap=lapTime;
+          if(this.best===null||lapTime<this.best) this.best=lapTime;
+          this.lap++;
+          if(this.lap>=this.laps){ this.finish(); }
+          else { this.next=0; this.lapStartT=this.t; this.flash('GIRO '+(this.lap+1)+'/'+this.laps+' · '+this.fmt(lapTime)); }
+        } else { this.next++; this.flash(m.name+' ✓'); }
+      }
+    }
+    this.hud();
+  },
+  hud(){
+    const m=this.cur();
+    if(m.kind==='finish'){ rcBuoy.textContent='🏁 Arrivo'; rcSide.textContent='taglia la linea verde'; rcSide.style.color='#2effa0'; }
+    else { rcBuoy.textContent=(this.next+1)+'/'+(this.def.length-1)+' · '+m.name;
+      rcSide.innerHTML=(m.side==='port')?'↺ a SINISTRA (port)':'↻ a DESTRA (stbd)';
+      rcSide.style.color=(m.side==='port')?'#ffd23f':'#37e0ff'; }
+    rcLap.textContent=Math.min(this.lap+1,this.laps)+'/'+this.laps;
+    rcTime.textContent=this.fmt(this.t);
+    rcBest.textContent=this.fmt(this.best);
+    const dx=m.x-S.pos.x, dz=m.z-S.pos.z;
+    rcDist.textContent=Math.hypot(dx,dz).toFixed(0)+' m';
+    rcArrow.style.transform='rotate('+((Math.atan2(dx,dz)-S.heading)*180/Math.PI).toFixed(0)+'deg)';
+  }
+};
+
 // ---------- Start / stop ----------
 $('#play').onclick=()=>{ start(); };
 backBtn.onclick=()=>{ stop(); };
@@ -917,13 +1164,15 @@ function start(){
   deriveGear(); buildWorld(); S.reset();
   // wind blows FROM +X this session (rider starts on starboard tack, powered)
   windFrom.set(1,0,0).normalize(); windToward.copy(windFrom).multiplyScalar(-1);
-  menu.style.display='none'; hud.style.display='flex'; scoreWrap.style.display='block';
+  menu.style.display='none'; hud.style.display='flex';
   backBtn.style.display='block'; playing=true;
   $('#windRose').style.display='block';
   $('#windV').textContent=cfg.wind+' kn';
+  if(RACE.on){ RACE.reset(); raceHud.style.display='block'; scoreWrap.style.display='none'; }
+  else { raceHud.style.display='none'; rcBig.style.display='none'; scoreWrap.style.display='block'; }
 }
 function stop(){ playing=false; AUD.silence(); menu.style.display='flex'; hud.style.display='none';
-  scoreWrap.style.display='none'; backBtn.style.display='none';
+  scoreWrap.style.display='none'; backBtn.style.display='none'; raceHud.style.display='none'; rcBig.style.display='none';
   $('#windRose').style.display='none'; $('#warn').style.display='none'; }
 
 // ---------- Resize ----------
@@ -1009,11 +1258,11 @@ function step(dt){
     const sideDot=star.dot(windFrom);       // >0 wind from starboard, <0 from port
     S.cosUp=cosUp; S.windSideDot=sideDot;
     S.correctTack = sideDot>=0 ? 1 : -1;    // side the wind comes from = where the wing should be
-    S.inIrons = cosUp>0.74;                 // wingfoils POINT HIGH: no-go zone narrow (~42° off wind)
+    S.inIrons = cosUp>0.795;                // bolina più stretta: no-go ~37° dal vento (5° più su di prima)
     const deadRun = cosUp < -0.80;          // dead downwind: either tack is fine, no backwind
     const sideLoad = Math.abs(sideDot);
     // wide bell so close-hauled still drives hard (bolina to ~20-22 kn); peak on a broad reach
-    const eff = THREE.MathUtils.clamp(1.05 - 0.72*Math.pow(cosUp+0.25,2), 0, 1.15);
+    const eff = THREE.MathUtils.clamp(1.05 - 0.66*Math.pow(cosUp+0.25,2), 0, 1.15);
     const wrongTack = !deadRun && !S.inIrons && (S.tack!==S.correctTack);
 
     let drive;
@@ -1278,8 +1527,11 @@ function step(dt){
   animateWater();
   updateSpray(dt);
   updateStreaks();
+  updateWindViz(dt);
+  updateWake(dt);
   updateCamera(dt, dir);
   updateHUD();
+  if(RACE.on) RACE.update(dt);
 
   // combo timer decay
   if(S.comboTimer>0){ S.comboTimer-=dt; if(S.comboTimer<=0) S.combo=1; }
@@ -1290,6 +1542,7 @@ function wipeout(){
   S.vel=Math.min(S.vel,0.6); S.height=0; S.airborne=false; S.vy=0; S.down=true;
   S.backwind=0; S.stall=0; S.combo=1; S.comboTimer=0; S.switch=false; S.feetSwapped=false; S.maneuver=0;
   S.roll=0; S.spin=0; S.spinVel=0; S.rollVel=0;
+  if(typeof wakePts!=='undefined') wakePts.length=0;
   trickPop.innerHTML='SPLASH! 💦<div style="font-size:18px;color:#cfe">caduto in acqua — pompa con ↑ per ripartire</div>';
   trickPop.style.opacity=1; popTimer=1.4; AUD.splash();
 }
