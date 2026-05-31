@@ -589,15 +589,17 @@ function buildFoil(mastH){
   const mast=buildSweptWing({span:mastH,chordRoot:0.17,chordTip:0.14,thick:0.34,sweep:0.015,dihedral:0,color:0x20252b,seg:6,prof:14,metal:0.75,rough:0.22});
   mast.rotation.z=Math.PI/2; mast.position.set(0,-mastH/2-0.05,0.02); g.add(mast);
   // fuselage
-  const fuse=new THREE.Mesh(new THREE.CylinderGeometry(0.034,0.024,1.0,12),carbon);
-  fuse.rotation.x=Math.PI/2; fuse.position.set(0,-mastH-0.02,0.02); g.add(fuse);
+  // fuselage — short, so the nose barely pokes past the front wing's leading edge (no long spike)
+  const fuse=new THREE.Mesh(new THREE.CylinderGeometry(0.032,0.022,0.86,12),carbon);
+  fuse.rotation.x=Math.PI/2; fuse.position.set(0,-mastH-0.02,-0.04); g.add(fuse);
   // front wing (forward), curved & swept
   // front wing (forward): wide, high-aspect & nearly flat (open) — like a modern surf-foil front
   const fw=buildSweptWing({span:0.82+cfg.wing/2400*1.05,chordRoot:0.205,chordTip:0.055,thick:0.36,sweep:-0.12,dihedral:0.05,color:wingCol});
   fw.position.set(0,-mastH-0.02,0.36); g.add(fw);
   // rear stabilizer
-  const rw=buildSweptWing({span:0.34,chordRoot:0.11,chordTip:0.05,thick:0.42,sweep:-0.06,dihedral:0.06,color:wingCol});
-  rw.position.set(0,-mastH-0.02,-0.44); g.add(rw);
+  // rear stabilizer: also wide & open (high-aspect, nearly flat) like the reference
+  const rw=buildSweptWing({span:0.50,chordRoot:0.10,chordTip:0.04,thick:0.40,sweep:-0.10,dihedral:0.03,color:wingCol});
+  rw.position.set(0,-mastH-0.02,-0.42); g.add(rw);
   return g;
 }
 
@@ -609,6 +611,8 @@ function buildRider(){
   const suit=new THREE.MeshStandardMaterial({color:0x12181f,roughness:0.62});
   const accent=new THREE.MeshStandardMaterial({color:0x1b9e98,roughness:0.6});
   const skin=new THREE.MeshStandardMaterial({color:0xd6a07a,roughness:0.75});
+  const shirt=new THREE.MeshStandardMaterial({color:0x4fc1e9,roughness:0.6});   // celeste jersey
+  const helmet=new THREE.MeshStandardMaterial({color:0x9aa3ab,roughness:0.55,metalness:0.1}); // grey helmet
 
   // pelvis in its own group so the hips can stay SQUARE to the legs in normal stance and
   // only rotate toward the wing when riding switch (set each frame in the step loop).
@@ -618,15 +622,15 @@ function buildRider(){
 
   // torso upright, shoulders slightly back (-Z) to hang off the wing's pull
   const torsoG=new THREE.Group(); torsoG.position.set(0,0.98,0.04); torsoG.rotation.x=-0.06; g.add(torsoG);
-  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(0.16,0.4,8,14),suit);
+  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(0.16,0.4,8,14),shirt);
   torso.position.y=0.22; torso.scale.set(1,1,0.72); torso.castShadow=true; torsoG.add(torso);
-  const chest=new THREE.Mesh(new THREE.CapsuleGeometry(0.168,0.14,8,14),accent);
+  const chest=new THREE.Mesh(new THREE.CapsuleGeometry(0.168,0.14,8,14),shirt);
   chest.position.y=0.34; chest.scale.set(1,1,0.74); torsoG.add(chest);
   const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.06,0.09,8),skin); neck.position.y=0.55; torsoG.add(neck);
   // head turned to look toward the nose (world +Z = local -X) → yaw about Y
   const headG=new THREE.Group(); headG.position.set(0,0.64,0.02); headG.rotation.y=1.0; torsoG.add(headG);
   const head=new THREE.Mesh(new THREE.SphereGeometry(0.135,18,16),skin); head.castShadow=true; headG.add(head);
-  const cap=new THREE.Mesh(new THREE.SphereGeometry(0.142,18,12,0,Math.PI*2,0,Math.PI*0.55),accent); cap.position.y=0.01; headG.add(cap);
+  const cap=new THREE.Mesh(new THREE.SphereGeometry(0.142,18,12,0,Math.PI*2,0,Math.PI*0.55),helmet); cap.position.y=0.01; headG.add(cap);
   const bun=new THREE.Mesh(new THREE.SphereGeometry(0.05,10,8),new THREE.MeshStandardMaterial({color:0x3a2a1f,roughness:0.9}));
   bun.position.set(-0.12,0.03,0); headG.add(bun);
 
@@ -661,7 +665,17 @@ function buildRider(){
     return grp;
   }
   function footMesh(){
-    const f=new THREE.Mesh(new THREE.BoxGeometry(0.13,0.06,0.27),suit); f.castShadow=true; return f;
+    // tapered foot-shaped sole: narrow rounded heel → wider ball → rounded toe (not a box)
+    const w=0.060, sh=new THREE.Shape();
+    sh.moveTo(-w*0.5,-0.14);
+    sh.quadraticCurveTo(-w,-0.03, -w,0.04);
+    sh.quadraticCurveTo(-w,0.12, 0,0.155);
+    sh.quadraticCurveTo(w,0.12, w,0.04);
+    sh.quadraticCurveTo(w,-0.03, w*0.5,-0.14);
+    sh.quadraticCurveTo(0,-0.17, -w*0.5,-0.14);
+    const g=new THREE.ExtrudeGeometry(sh,{depth:0.05,bevelEnabled:true,bevelThickness:0.014,bevelSize:0.014,bevelSegments:2,steps:1,curveSegments:10});
+    g.rotateX(-Math.PI/2); g.translate(0,-0.025,0);   // sole flat, length along Z, toe toward -Z
+    const f=new THREE.Mesh(g,suit); f.castShadow=true; return f;
   }
   const limbR=limb(), limbL=limb(); legsG.add(limbR); legsG.add(limbL);
   const footR=footMesh(), footL=footMesh(); legsG.add(footR); legsG.add(footL);
