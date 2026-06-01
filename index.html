@@ -1194,7 +1194,7 @@ function buildWindViz(){
 }
 function updateWindViz(dt){
   if(!windViz) return;
-  const tx=-windToward.x, tz=-windToward.z;    // flipped: streaks read in the felt-wind direction
+  const tx=windToward.x, tz=windToward.z;       // streaks travel DOWNWIND (the way the wind blows)
   const px=-tz, pz=tx;                         // across-wind
   const pos=windViz.geometry.attributes.position;
   // streaks travel DOWNWIND (the way the wind blows). Drift is biased above rider
@@ -1431,7 +1431,7 @@ const REG = {
       const st={ x:-62-Math.random()*6, y:0.2, z:laneZ, c:cols[i%cols.length], n:names[i%names.length], p:0.05,w:0,f:0,l:0,a:0,b:0,h:Math.PI/2,r:0.3,t:0,s:0 };
       const G=buildGhost(st);
       const delay = skill==='strong'? Math.random()*0.8 : skill==='weak'? 1.5+Math.random()*3.5 : Math.random()*2.5;
-      this.ai.push({ x:st.x,y:0.2,z:laneZ,h:Math.PI/2, holdX:-54-Math.random()*4, holdZ:laneZ, spd:5+s*5, skill:s, go:this.total+delay, next:0, lap:0, tack:1, fin:false, t:0, name:st.n, c:st.c, G });
+      this.ai.push({ x:st.x,y:0.2,z:laneZ,h:Math.PI/2, holdX:-54-Math.random()*4, holdZ:laneZ, spd:5+s*5, skill:s, go:this.total+delay, next:0, lap:0, tack:1, fin:false, t:0, up:0, corr:8+Math.random()*7, beatTack:undefined, name:st.n, c:st.c, G });
     }
   },
   addPenalty(turns,msg){ if(this.pen>0) return; this.pen=1; this.penReq=turns*Math.PI*2; this.penNet=0; this.penMsg=msg; if(AUD.blip) AUD.blip(330,0.3,'sawtooth',0.25); },
@@ -1479,18 +1479,32 @@ const REG = {
     this.aiStep(dt); if(this.ai.length) this.standings();
   },
   aiStep(dt){
+    const lerp=THREE.MathUtils.lerp;
     for(const a of this.ai){
       if(a.fin){ poseGhost(a.G,dt); continue; }
-      if(this.t<a.go){ a.x+=(a.holdX-a.x)*Math.min(1,dt*0.6); a.z+=(a.holdZ-a.z)*Math.min(1,dt*0.6); a.y=0.2; a.h=Math.PI/2; }
-      else {
-        const m=RACE.def[RACE.seq[a.next]]||RACE.def[3]; const dx=m.x-a.x, dz=m.z-a.z, dist=Math.hypot(dx,dz);
-        const bear=Math.atan2(dx,dz); let th;
-        if(m.kind==='windward' && Math.sin(bear)>0.74){ const side=(dz>=0)?1:-1; th=Math.atan2(0.74,side*0.67); a.tack=(side>0)?-1:1; }
-        else { th=bear; a.tack=(Math.sin(th)>=0?1:-1); }
-        th+=(1-a.skill)*0.25*Math.sin(this.t*1.7+a.holdZ); a.h+=this.angDiff(th,a.h)*Math.min(1,dt*2.2);
-        a.x+=Math.sin(a.h)*a.spd*dt; a.z+=Math.cos(a.h)*a.spd*dt; a.y=1.05;
-        if(dist<(m.kind==='finish'?RACE.lineR:RACE.R)){ if(m.kind==='finish'){ a.fin=true; a.t=RACE.t; } else if(m.kind==='leeward'){ a.lap++; a.next++; } else a.next++; }
+      if(this.t<a.go){
+        // Pre-start: hold station near the line, sitting in the water (not foiling), gently jockeying.
+        a.x+=(a.holdX-a.x)*Math.min(1,dt*0.5); a.z+=(a.holdZ-a.z)*Math.min(1,dt*0.5);
+        a.h=Math.PI/2+Math.sin(this.t*0.6+a.holdZ)*0.22; a.y=waveH(a.x,a.z)+0.22; a.up=0; a.beatTack=undefined;
+        const tg=a.G.tgt; tg.x=a.x; tg.y=a.y; tg.z=a.z; tg.h=a.h; tg.p=0.04; tg.w=0; tg.f=0; tg.l=0.25; tg.a=0; tg.b=0; tg.r=0.3; tg.t=0; tg.s=0;
+        poseGhost(a.G,dt); continue;
       }
+      // Racing: ramp up onto the foil (pump up to speed, then lift) instead of flying from standstill.
+      a.up=Math.min(1,(a.up||0)+dt*0.45);
+      const m=RACE.def[RACE.seq[a.next]]||RACE.def[3]; const dx=m.x-a.x, dz=m.z-a.z, dist=Math.hypot(dx,dz);
+      const bear=Math.atan2(dx,dz); let th;
+      if(m.kind==='windward' && Math.sin(bear)>0.62 && dist>RACE.R*2.4){
+        // Beat upwind on laylines: commit to a tack until you cross the corridor, then tack (clear zig-zag).
+        if(a.beatTack===undefined) a.beatTack=(a.z<=m.z?1:-1);
+        if(a.beatTack>0 && a.z>m.z+a.corr) a.beatTack=-1;
+        else if(a.beatTack<0 && a.z<m.z-a.corr) a.beatTack=1;
+        th=Math.atan2(0.74,a.beatTack*0.67); a.tack=(a.beatTack>0)?-1:1;
+      } else { a.beatTack=undefined; th=bear; a.tack=(Math.sin(th)>=0?1:-1); }
+      a.h+=this.angDiff(th,a.h)*Math.min(1,dt*2.0);
+      const spd=a.spd*(0.35+0.65*a.up);
+      a.x+=Math.sin(a.h)*spd*dt; a.z+=Math.cos(a.h)*spd*dt;
+      a.y=lerp(waveH(a.x,a.z)+0.22,1.05,a.up);
+      if(dist<(m.kind==='finish'?RACE.lineR:RACE.R)){ if(m.kind==='finish'){ a.fin=true; a.t=RACE.t; } else if(m.kind==='leeward'){ a.lap++; a.next++; } else a.next++; }
       const tg=a.G.tgt; tg.x=a.x; tg.y=a.y; tg.z=a.z; tg.h=a.h; tg.p=0.06; tg.w=0; tg.f=0; tg.l=0; tg.a=0; tg.b=0; tg.r=a.tack*0.4; tg.t=0; tg.s=0; poseGhost(a.G,dt);
     }
   },
