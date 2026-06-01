@@ -2359,6 +2359,8 @@ function updateHUD(){
     #tc-switch{right:198px;bottom:220px;width:64px;height:64px;background:rgba(39,150,211,.34);border-color:rgba(39,150,211,.62);font-size:13px}
     #tc-switch.on{background:rgba(39,150,211,.72)}
     #tc-grab{right:198px;bottom:44px;width:64px;height:64px}
+    #tc-cam{right:198px;bottom:308px;width:64px;height:64px;background:rgba(150,160,180,.30);border-color:rgba(190,200,220,.6);font-size:12px}
+    #tc-cam.on{background:rgba(190,200,220,.7)}
     #tc-flb{left:18px;bottom:182px;width:72px;height:72px;background:rgba(120,90,220,.32);border-color:rgba(150,120,240,.6);font-size:11px}
     #tc-flf{left:106px;bottom:182px;width:72px;height:72px;background:rgba(120,90,220,.32);border-color:rgba(150,120,240,.6);font-size:11px}
     #tc-flb.on,#tc-flf.on{background:rgba(150,120,240,.72)}
@@ -2375,6 +2377,7 @@ function updateHUD(){
     '<div class="tc" id="tc-tack"  data-code="KeyF" data-tap="1">TACK</div>'+
     '<div class="tc" id="tc-switch" data-code="KeyS" data-tap="1">SWITCH</div>'+
     '<div class="tc" id="tc-grab"  data-code="ShiftLeft">GRAB</div>'+
+    '<div class="tc" id="tc-cam"  data-code="KeyC" data-tap="1"><span class="ic">&#128247;</span>CAM</div>'+
     '<div class="tc" id="tc-flb"  data-code="KeyQ"><span class="ic">&#8634;</span>B-LOOP</div>'+
     '<div class="tc" id="tc-flf"  data-code="KeyE"><span class="ic">&#8635;</span>F-LOOP</div>';
   document.body.appendChild(wrap);
