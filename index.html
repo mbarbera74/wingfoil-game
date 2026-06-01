@@ -998,14 +998,14 @@ const S={
   boardRoll:0,
   surf:0, waveSlope:0, // wave-face surfing state
   waterY:0,            // low-pass water surface the foil glides over
-  tack:1, riderYaw:Math.PI/2, // which side the wing is held (+1 starboard / -1 port)
+  tack:1, riderYaw:Math.PI/2+Math.PI, // which side the wing is held (+1 starboard / -1 port)
   correctTack:1, windSideDot:0, cosUp:0, backwind:0, stall:0, inIrons:false, sailLow:0, down:false,
   switch:false, switchAnim:0, feetSwapped:false, feetAnim:0, maneuver:0, maneuverType:'tack', // switch stance + tack/jibe anim
   score:0, combo:1, comboTimer:0,
   reset(){ this.pos.set(0,0,0); this.heading=0; this.vel=2; this.height=0; this.vy=0;
     this.airborne=false; this.air=0; this.spin=0; this.roll=0; this.rollVel=0; this.spinVel=0;
     this.boardRoll=0; this.surf=0; this.waveSlope=0; this.waterY=0;
-    this.tack=1; this.riderYaw=Math.PI/2; this.correctTack=1; this.windSideDot=0; this.cosUp=0;
+    this.tack=1; this.riderYaw=Math.PI/2+Math.PI; this.correctTack=1; this.windSideDot=0; this.cosUp=0;
     this.backwind=0; this.stall=0; this.inIrons=false; this.sailLow=0; this.down=false;
     this.switch=false; this.switchAnim=0; this.feetSwapped=false; this.feetAnim=0; this.maneuver=0; this.maneuverType='tack';
     this.score=0; this.combo=1; this.comboTimer=0; }
@@ -1498,7 +1498,7 @@ const REG = {
         const spd=a.spd*(toGo>7?0.78:0.92);
         a.x+=Math.sin(a.h)*spd*dt; a.z+=Math.cos(a.h)*spd*dt; a.y=1.05;
         a.tack=(Math.sin(a.h)>=0?1:-1);
-        const tg=a.G.tgt; tg.x=a.x; tg.y=a.y; tg.z=a.z; tg.h=a.h; tg.p=0.06; tg.w=0; tg.f=0; tg.l=0; tg.a=0; tg.b=0; tg.r=a.tack*0.4; tg.t=0; tg.s=0;
+        const tg=a.G.tgt; tg.x=a.x; tg.y=a.y; tg.z=a.z; tg.h=a.h; tg.p=0.06; tg.w=0; tg.f=0; tg.l=0; tg.a=0; tg.b=0; tg.r=a.tack*Math.PI/2+Math.PI; tg.t=0; tg.s=0;
         poseGhost(a.G,dt); continue;
       }
       // Racing: ramp up onto the foil (pump up to speed, then lift) instead of flying from standstill.
@@ -1517,7 +1517,7 @@ const REG = {
       a.x+=Math.sin(a.h)*spd*dt; a.z+=Math.cos(a.h)*spd*dt;
       a.y=lerp(waveH(a.x,a.z)+0.22,1.05,a.up);
       if(dist<(m.kind==='finish'?RACE.lineR:RACE.R)){ if(m.kind==='finish'){ a.fin=true; a.t=RACE.t; } else if(m.kind==='leeward'){ a.lap++; a.next++; } else a.next++; }
-      const tg=a.G.tgt; tg.x=a.x; tg.y=a.y; tg.z=a.z; tg.h=a.h; tg.p=0.06; tg.w=0; tg.f=0; tg.l=0; tg.a=0; tg.b=0; tg.r=a.tack*0.4; tg.t=0; tg.s=0; poseGhost(a.G,dt);
+      const tg=a.G.tgt; tg.x=a.x; tg.y=a.y; tg.z=a.z; tg.h=a.h; tg.p=0.06; tg.w=0; tg.f=0; tg.l=0; tg.a=0; tg.b=0; tg.r=a.tack*Math.PI/2+Math.PI; tg.t=0; tg.s=0; poseGhost(a.G,dt);
     }
   },
   prog(next,lap,x,z){ const m=RACE.def[RACE.seq[next]]||RACE.def[3]; return lap*100000+next*1000-Math.hypot(x-m.x,z-m.z); },
@@ -2031,7 +2031,10 @@ function step(dt){
 
   // ---- body faces the wing side; FEET stay planted on the board through a tack ----
   if(S.maneuver>0) S.maneuver=Math.max(0, S.maneuver-dt);
-  const yawTarget = S.tack*Math.PI/2;
+  // +π so the rider AND the wing sit on the correct (leeward) side of the board: the body and
+  // sail swing 180° to the downwind side while the FEET stay planted (legsG counter-rotates
+  // relative to riderYaw) and the punta still points to the nose (mir=sin flips to compensate).
+  const yawTarget = S.tack*Math.PI/2 + Math.PI;
   S.riderYaw += (yawTarget - S.riderYaw)*Math.min(1, dt*(S.maneuver>0?4:7));
   rider.rotation.y = S.riderYaw;
 
@@ -2146,7 +2149,7 @@ function step(dt){
     // MIRROR the canopy across the strut so it inflates on the correct (downwind) side for
     // the current tack: scale.x = sin(riderYaw) is +1 on one tack, −1 on the other and
     // passes through ~0 (wing edge-on/feathered overhead) midway through a tack/jibe.
-    let mir=-Math.sin(S.riderYaw); if(Math.abs(mir)<0.06) mir=(mir<0?-0.06:0.06);
+    let mir=Math.sin(S.riderYaw); if(Math.abs(mir)<0.06) mir=(mir<0?-0.06:0.06);
     if(wingMesh) wingMesh.scale.x=mir;
     // SNAP the handle to the rear hand (only while depowered)
     if(S.sailLow>0.001 && bodyParts){
