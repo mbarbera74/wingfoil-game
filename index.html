@@ -1431,7 +1431,7 @@ const REG = {
       const st={ x:-62-Math.random()*6, y:0.2, z:laneZ, c:cols[i%cols.length], n:names[i%names.length], p:0.05,w:0,f:0,l:0,a:0,b:0,h:Math.PI/2,r:0.3,t:0,s:0 };
       const G=buildGhost(st);
       const delay = skill==='strong'? Math.random()*0.8 : skill==='weak'? 1.5+Math.random()*3.5 : Math.random()*2.5;
-      this.ai.push({ x:st.x,y:0.2,z:laneZ,h:Math.PI/2, holdX:-54-Math.random()*4, holdZ:laneZ, spd:5+s*5, skill:s, go:this.total+delay, next:0, lap:0, tack:1, fin:false, t:0, up:0, corr:8+Math.random()*7, beatTack:undefined, name:st.n, c:st.c, G });
+      this.ai.push({ x:st.x,y:1.05,z:laneZ,h:Math.PI/2, holdX:-54-Math.random()*4, holdZ:laneZ, spd:5+s*5, skill:s, go:this.total+delay, next:0, lap:0, tack:1, fin:false, t:0, up:1, corr:8+Math.random()*7, beatTack:undefined, cx:-58-Math.random()*9, cz:laneZ, loopR:6+Math.random()*4, loopDir:(Math.random()<0.5?-1:1), loopPh:Math.random()*Math.PI*2, name:st.n, c:st.c, G });
     }
   },
   addPenalty(turns,msg){ if(this.pen>0) return; this.pen=1; this.penReq=turns*Math.PI*2; this.penNet=0; this.penMsg=msg; if(AUD.blip) AUD.blip(330,0.3,'sawtooth',0.25); },
@@ -1480,13 +1480,25 @@ const REG = {
   },
   aiStep(dt){
     const lerp=THREE.MathUtils.lerp;
+    const lineMidX=(this.P0.x+this.P1.x)/2;
     for(const a of this.ai){
       if(a.fin){ poseGhost(a.G,dt); continue; }
       if(this.t<a.go){
-        // Pre-start: hold station near the line, sitting in the water (not foiling), gently jockeying.
-        a.x+=(a.holdX-a.x)*Math.min(1,dt*0.5); a.z+=(a.holdZ-a.z)*Math.min(1,dt*0.5);
-        a.h=Math.PI/2+Math.sin(this.t*0.6+a.holdZ)*0.22; a.y=waveH(a.x,a.z)+0.22; a.up=0; a.beatTack=undefined;
-        const tg=a.G.tgt; tg.x=a.x; tg.y=a.y; tg.z=a.z; tg.h=a.h; tg.p=0.04; tg.w=0; tg.f=0; tg.l=0.25; tg.a=0; tg.b=0; tg.r=0.3; tg.t=0; tg.s=0;
+        // PRE-START (flying start): competitors are ALREADY up on the foil, flying loops in
+        // the pre-start box behind the line — you cannot take off from a standstill — then they
+        // commit to the line on a final approach so they cross at full speed at the gun.
+        a.up=1; a.beatTack=undefined;
+        const toGo=a.go-this.t; let tx,tz;
+        if(toGo>7){
+          a.loopPh+=dt*(a.spd/a.loopR)*a.loopDir;     // circle/loop behind the line
+          tx=a.cx+Math.cos(a.loopPh)*a.loopR; tz=a.cz+Math.sin(a.loopPh)*a.loopR;
+        } else { tx=lineMidX+4; tz=a.holdZ*0.6; }      // final approach: hit the line heading upwind
+        const dh=Math.atan2(tx-a.x,tz-a.z);
+        a.h+=this.angDiff(dh,a.h)*Math.min(1,dt*1.8);
+        const spd=a.spd*(toGo>7?0.78:0.92);
+        a.x+=Math.sin(a.h)*spd*dt; a.z+=Math.cos(a.h)*spd*dt; a.y=1.05;
+        a.tack=(Math.sin(a.h)>=0?1:-1);
+        const tg=a.G.tgt; tg.x=a.x; tg.y=a.y; tg.z=a.z; tg.h=a.h; tg.p=0.06; tg.w=0; tg.f=0; tg.l=0; tg.a=0; tg.b=0; tg.r=a.tack*0.4; tg.t=0; tg.s=0;
         poseGhost(a.G,dt); continue;
       }
       // Racing: ramp up onto the foil (pump up to speed, then lift) instead of flying from standstill.
@@ -2134,7 +2146,7 @@ function step(dt){
     // MIRROR the canopy across the strut so it inflates on the correct (downwind) side for
     // the current tack: scale.x = sin(riderYaw) is +1 on one tack, −1 on the other and
     // passes through ~0 (wing edge-on/feathered overhead) midway through a tack/jibe.
-    let mir=Math.sin(S.riderYaw); if(Math.abs(mir)<0.06) mir=(mir<0?-0.06:0.06);
+    let mir=-Math.sin(S.riderYaw); if(Math.abs(mir)<0.06) mir=(mir<0?-0.06:0.06);
     if(wingMesh) wingMesh.scale.x=mir;
     // SNAP the handle to the rear hand (only while depowered)
     if(S.sailLow>0.001 && bodyParts){
