@@ -1431,7 +1431,7 @@ const REG = {
       const st={ x:-62-Math.random()*6, y:0.2, z:laneZ, c:cols[i%cols.length], n:names[i%names.length], p:0.05,w:0,f:0,l:0,a:0,b:0,h:Math.PI/2,r:0.3,t:0,s:0 };
       const G=buildGhost(st);
       const delay = skill==='strong'? Math.random()*0.8 : skill==='weak'? 1.5+Math.random()*3.5 : Math.random()*2.5;
-      this.ai.push({ x:st.x,y:1.05,z:laneZ,h:Math.PI/2, holdX:-54-Math.random()*4, holdZ:laneZ, spd:5+s*5, skill:s, go:this.total+delay, next:0, lap:0, tack:1, fin:false, t:0, up:1, corr:8+Math.random()*7, beatTack:undefined, cx:-58-Math.random()*9, cz:laneZ, loopR:6+Math.random()*4, loopDir:(Math.random()<0.5?-1:1), loopPh:Math.random()*Math.PI*2, name:st.n, c:st.c, G });
+      this.ai.push({ x:st.x,y:1.05,z:laneZ,h:Math.PI/2, holdX:-54-Math.random()*4, holdZ:laneZ, spd:5+s*5, skill:s, go:this.total+delay, next:0, lap:0, tack:1, fin:false, t:0, up:1, corr:8+Math.random()*7, beatTack:undefined, cx:-58-Math.random()*9, cz:laneZ, loopR:6+Math.random()*4, loopDir:(Math.random()<0.5?-1:1), loopPh:Math.random()*Math.PI*2, rnd:false, name:st.n, c:st.c, G });
     }
   },
   addPenalty(turns,msg){ if(this.pen>0) return; this.pen=1; this.penReq=turns*Math.PI*2; this.penNet=0; this.penMsg=msg; if(AUD.blip) AUD.blip(330,0.3,'sawtooth',0.25); },
@@ -1503,20 +1503,35 @@ const REG = {
       }
       // Racing: ramp up onto the foil (pump up to speed, then lift) instead of flying from standstill.
       a.up=Math.min(1,(a.up||0)+dt*0.45);
-      const m=RACE.def[RACE.seq[a.next]]||RACE.def[3]; const dx=m.x-a.x, dz=m.z-a.z, dist=Math.hypot(dx,dz);
-      const bear=Math.atan2(dx,dz); let th;
-      if(m.kind==='windward' && Math.sin(bear)>0.62 && dist>RACE.R*2.4){
+      const m=RACE.def[RACE.seq[a.next]]||RACE.def[3];
+      const nm=RACE.def[RACE.seq[a.next+1]];
+      const dx=m.x-a.x, dz=m.z-a.z, dist=Math.hypot(dx,dz);
+      const bear=Math.atan2(dx,dz); const RA=RACE.R*1.25; let th; let arrived=false;
+      const isFin=(m.kind==='finish');
+      if(!isFin && m.kind==='windward' && Math.sin(bear)>0.62 && dist>RACE.R*2.4){
         // Beat upwind on laylines: commit to a tack until you cross the corridor, then tack (clear zig-zag).
+        a.rnd=false;
         if(a.beatTack===undefined) a.beatTack=(a.z<=m.z?1:-1);
         if(a.beatTack>0 && a.z>m.z+a.corr) a.beatTack=-1;
         else if(a.beatTack<0 && a.z<m.z-a.corr) a.beatTack=1;
         th=Math.atan2(0.74,a.beatTack*0.67); a.tack=(a.beatTack>0)?-1:1;
-      } else { a.beatTack=undefined; th=bear; a.tack=(Math.sin(th)>=0?1:-1); }
+      } else if(!isFin){
+        // Round the mark properly instead of cutting the corner: first steer to a waypoint placed
+        // on the OUTSIDE of the mark (far side from the NEXT mark), then close on the mark and pass
+        // it — so the buoy is left to the correct (port) side and the AI never cuts between two marks.
+        a.beatTack=undefined;
+        let ox,oz; if(nm){ ox=m.x-nm.x; oz=m.z-nm.z; } else { ox=m.x-a.x; oz=m.z-a.z; }
+        const ol=Math.hypot(ox,oz)||1; ox/=ol; oz/=ol;
+        const wpx=m.x+ox*RA, wpz=m.z+oz*RA, dwp=Math.hypot(wpx-a.x,wpz-a.z);
+        if(!a.rnd){ th=Math.atan2(wpx-a.x,wpz-a.z); if(dwp<RA*0.7) a.rnd=true; }
+        else { th=bear; if(dist<RACE.R){ arrived=true; a.rnd=false; } }
+        a.tack=(Math.sin(th)>=0?1:-1);
+      } else { a.beatTack=undefined; a.rnd=false; th=bear; a.tack=(Math.sin(th)>=0?1:-1); if(dist<RACE.lineR) arrived=true; }
       a.h+=this.angDiff(th,a.h)*Math.min(1,dt*2.0);
       const spd=a.spd*(0.35+0.65*a.up);
       a.x+=Math.sin(a.h)*spd*dt; a.z+=Math.cos(a.h)*spd*dt;
       a.y=lerp(waveH(a.x,a.z)+0.22,1.05,a.up);
-      if(dist<(m.kind==='finish'?RACE.lineR:RACE.R)){ if(m.kind==='finish'){ a.fin=true; a.t=RACE.t; } else if(m.kind==='leeward'){ a.lap++; a.next++; } else a.next++; }
+      if(arrived){ if(isFin){ a.fin=true; a.t=RACE.t; } else if(m.kind==='leeward'){ a.lap++; a.next++; } else a.next++; }
       const tg=a.G.tgt; tg.x=a.x; tg.y=a.y; tg.z=a.z; tg.h=a.h; tg.p=0.06; tg.w=0; tg.f=0; tg.l=0; tg.a=0; tg.b=0; tg.r=a.tack*Math.PI/2+Math.PI; tg.t=0; tg.s=0; poseGhost(a.G,dt);
     }
   },
