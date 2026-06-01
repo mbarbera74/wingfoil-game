@@ -342,7 +342,7 @@
         <input id="musicFile" type="file" accept="audio/*" style="display:none">
       </label>
       <span id="musicName" style="font-size:12px;color:var(--muted);margin-left:8px"></span>
-      <div class="advice" style="margin-top:6px">Online il brano non è incluso (copyright): carica la <b>tua copia legale</b> (es. <i>War — Joe Satriani</i>) e parte in loop. <kbd>M</kbd> per mutare.<br><span style="color:var(--muted);font-size:11px">Musica online di default: <i>"Unchained Destiny"</i> di <i>nene</i> — licenza <b>CC0</b> (dominio pubblico, nessun credito richiesto). Fonte: OpenGameArt.org</span></div>
+      <div class="advice" style="margin-top:6px">Online il brano non è incluso (copyright): carica la <b>tua copia legale</b> e parte in loop. <kbd>M</kbd> per mutare.<br><span style="color:var(--muted);font-size:11px">Musica online di default: <i>"Unchained Destiny"</i> di <i>nene</i> — licenza <b>CC0</b> (dominio pubblico, nessun credito richiesto). Fonte: OpenGameArt.org</span></div>
     </div>
 
     <div class="keys">
@@ -1431,7 +1431,7 @@ const REG = {
       const st={ x:-62-Math.random()*6, y:0.2, z:laneZ, c:cols[i%cols.length], n:names[i%names.length], p:0.05,w:0,f:0,l:0,a:0,b:0,h:Math.PI/2,r:0.3,t:0,s:0 };
       const G=buildGhost(st);
       const delay = skill==='strong'? Math.random()*0.8 : skill==='weak'? 1.5+Math.random()*3.5 : Math.random()*2.5;
-      this.ai.push({ x:st.x,y:0.2,z:laneZ,h:Math.PI/2, holdX:-54-Math.random()*4, holdZ:laneZ, spd:6+s*7, skill:s, go:this.total+delay, next:0, lap:0, tack:1, fin:false, t:0, name:st.n, c:st.c, G });
+      this.ai.push({ x:st.x,y:0.2,z:laneZ,h:Math.PI/2, holdX:-54-Math.random()*4, holdZ:laneZ, spd:5+s*5, skill:s, go:this.total+delay, next:0, lap:0, tack:1, fin:false, t:0, name:st.n, c:st.c, G });
     }
   },
   addPenalty(turns,msg){ if(this.pen>0) return; this.pen=1; this.penReq=turns*Math.PI*2; this.penNet=0; this.penMsg=msg; if(AUD.blip) AUD.blip(330,0.3,'sawtooth',0.25); },
@@ -1484,8 +1484,9 @@ const REG = {
       if(this.t<a.go){ a.x+=(a.holdX-a.x)*Math.min(1,dt*0.6); a.z+=(a.holdZ-a.z)*Math.min(1,dt*0.6); a.y=0.2; a.h=Math.PI/2; }
       else {
         const m=RACE.def[RACE.seq[a.next]]||RACE.def[3]; const dx=m.x-a.x, dz=m.z-a.z, dist=Math.hypot(dx,dz);
-        let th=Math.atan2(dx,dz); const up=Math.cos(th);
-        if(m.kind==='windward' && up>0.7){ a.tack=(a.z<m.z?-1:1); th=Math.atan2(1,(a.z<m.z?1:-1)*1); } else a.tack=(Math.sin(th)>=0?1:-1);
+        const bear=Math.atan2(dx,dz); let th;
+        if(m.kind==='windward' && Math.sin(bear)>0.74){ const side=(dz>=0)?1:-1; th=Math.atan2(0.74,side*0.67); a.tack=(side>0)?-1:1; }
+        else { th=bear; a.tack=(Math.sin(th)>=0?1:-1); }
         th+=(1-a.skill)*0.25*Math.sin(this.t*1.7+a.holdZ); a.h+=this.angDiff(th,a.h)*Math.min(1,dt*2.2);
         a.x+=Math.sin(a.h)*a.spd*dt; a.z+=Math.cos(a.h)*a.spd*dt; a.y=1.05;
         if(dist<(m.kind==='finish'?RACE.lineR:RACE.R)){ if(m.kind==='finish'){ a.fin=true; a.t=RACE.t; } else if(m.kind==='leeward'){ a.lap++; a.next++; } else a.next++; }
